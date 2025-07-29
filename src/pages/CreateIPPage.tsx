@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
+import { addIP } from '../services/ipService';
 
 interface CreateIPForm {
   title: string;
@@ -91,6 +92,18 @@ const CreateIPPage = () => {
       });
 
       if (result.success) {
+        // Save IP to localStorage for Explore page
+        await addIP({
+          title: formData.title,
+          description: formData.description,
+          content: formData.content,
+          contentType: formData.contentType,
+          license: formData.license,
+          author: window.ethereum?.selectedAddress || 'Unknown',
+          cid: ipfsResult.cid,
+          contentURI: ipfsResult.url
+        });
+
         alert('IP registered successfully!');
         navigate('/explore'); // Redirect to explore page
       } else {

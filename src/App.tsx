@@ -37,8 +37,8 @@ function App() {
           {/* Remix Graph Page */}
           <Route path="/graph" element={<RemixGraphPage />} />
           
-          {/* Remix Page (with ID parameter) */}
-          <Route path="/remix/:id" element={<RemixPage />} />
+          {/* Remix Page */}
+          <Route path="/remix" element={<RemixPage />} />
           
           {/* IP Details Page (for future use) */}
           <Route path="/ip/:id" element={<RemixPage />} />
