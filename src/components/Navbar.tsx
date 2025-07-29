@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { initializeAuthClient, connectUser, disconnectUser } from '../services/campOrigin';
 
 // MetaMask type declarations
 declare global {
   interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      selectedAddress?: string;
-      on: (event: string, callback: (params: any) => void) => void;
-      removeListener: (event: string, callback: (params: any) => void) => void;
-    };
+    ethereum?: any;
   }
 }
 
@@ -39,6 +35,8 @@ const Navbar = () => {
 
     try {
       setIsConnecting(true);
+      
+      // Request accounts first
       const accounts = await window.ethereum!.request({ 
         method: 'eth_requestAccounts' 
       });
@@ -46,7 +44,25 @@ const Navbar = () => {
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         setIsConnected(true);
-                await switchToBasecamp();
+        
+        // Switch to Basecamp network
+        await switchToBasecamp();
+        
+        // Initialize Origin SDK after wallet is connected
+        try {
+          const clientId = import.meta.env.VITE_CAMP_CLIENT_ID;
+          if (!clientId) {
+            throw new Error('Camp Network Client ID not found in environment variables');
+          }
+          await initializeAuthClient(clientId);
+          await connectUser();
+          console.log('Successfully connected to Origin SDK');
+        } catch (originError) {
+          console.error('Origin SDK error:', originError);
+          // Don't fail the entire connection if Origin SDK fails
+          // User can still use the app without Origin SDK
+          console.log('Continuing without Origin SDK...');
+        }
       }
     } catch (error) {
       console.error('Error connecting to MetaMask:', error);
