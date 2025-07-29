@@ -59,6 +59,12 @@ const CreateIPPage = () => {
       return;
     }
 
+    // Check if user is connected to wallet first
+    if (!window.ethereum?.selectedAddress) {
+      alert('Please connect your wallet first to create an IP.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

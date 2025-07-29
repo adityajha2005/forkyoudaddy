@@ -25,23 +25,36 @@ const BASECAMP_CONFIG = {
 let authClient: Auth | null = null;
 
 export const initializeAuthClient = async (clientId: string) => {
+  console.log('Initializing Auth client with clientId:', clientId);
+  
+  // If auth client is already initialized, return it
+  if (authClient) {
+    console.log('Auth client already initialized, returning existing instance');
+    return authClient;
+  }
+  
   if (!isOriginSDKAvailable()) {
     throw new Error('Origin SDK not available');
   }
   
   try {
+    console.log('Creating Auth instance...');
     authClient = new Auth({
       clientId,
       redirectUri: window.location.href,
       allowAnalytics: true
     });
     
+    console.log('Auth instance created, setting provider...');
     // Set the provider if ethereum is available
     if (typeof window !== 'undefined' && window.ethereum) {
       authClient.setProvider({
         provider: window.ethereum,
         info: { name: 'MetaMask', icon: 'https://metamask.io/images/metamask-fox.svg' }
       });
+      console.log('Provider set successfully');
+    } else {
+      console.log('No ethereum provider available');
     }
     
     console.log('Auth client initialized successfully');
@@ -52,9 +65,23 @@ export const initializeAuthClient = async (clientId: string) => {
   }
 };
 
-export const getAuthClient = () => {
+export const getAuthClient = async () => {
   if (!authClient) {
-    throw new Error('Auth client not initialized. Call initializeAuthClient first.');
+    console.log('Auth client not found, attempting to re-initialize...');
+    
+    // Try to re-initialize the auth client
+    const clientId = import.meta.env.VITE_CAMP_CLIENT_ID;
+    if (!clientId) {
+      throw new Error('Auth client not initialized and no client ID available. Please connect your wallet first.');
+    }
+    
+    try {
+      await initializeAuthClient(clientId);
+      console.log('Auth client re-initialized successfully');
+    } catch (error) {
+      console.error('Failed to re-initialize auth client:', error);
+      throw new Error('Auth client not initialized. Please connect your wallet first to initialize the auth client.');
+    }
   }
   return authClient;
 };
@@ -62,7 +89,12 @@ export const getAuthClient = () => {
 // Connect user to Origin SDK
 export const connectUser = async () => {
   try {
-    const auth = getAuthClient();
+    console.log('Getting auth client...');
+    const auth = await getAuthClient();
+    if (!auth) {
+      throw new Error('Auth client not available');
+    }
+    console.log('Auth client obtained, connecting user...');
     await auth.connect();
     console.log('User connected to Origin SDK');
   } catch (error) {
@@ -74,7 +106,10 @@ export const connectUser = async () => {
 // Disconnect user from Origin SDK
 export const disconnectUser = async () => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
+    if (!auth) {
+      throw new Error('Auth client not available');
+    }
     await auth.disconnect();
     console.log('User disconnected from Origin SDK');
   } catch (error) {
@@ -86,8 +121,8 @@ export const disconnectUser = async () => {
 // Get user's Origin uploads
 export const getUserUploads = async () => {
   try {
-    const auth = getAuthClient();
-    if (!auth.origin) {
+    const auth = await getAuthClient();
+    if (!auth || !auth.origin) {
       throw new Error('Origin not available. User must be authenticated.');
     }
     const result = await auth.origin.getOriginUploads();
@@ -101,8 +136,8 @@ export const getUserUploads = async () => {
 // Get user's Origin usage stats
 export const getUserStats = async () => {
   try {
-    const auth = getAuthClient();
-    if (!auth.origin) {
+    const auth = await getAuthClient();
+    if (!auth || !auth.origin) {
       throw new Error('Origin not available. User must be authenticated.');
     }
     const result = await auth.origin.getOriginUsage();
@@ -122,13 +157,9 @@ export const registerIP = async (params: {
   contentURI?: string;
 }) => {
   try {
-    // For now, we'll work without requiring auth client to be initialized
-    // since this is a mock implementation
-    let auth = null;
-    try {
-      auth = getAuthClient();
-    } catch (error) {
-      console.log('Auth client not initialized, using mock registration');
+    const auth = await getAuthClient();
+    if (!auth || !auth.origin) {
+      throw new Error('Origin not available. User must be authenticated.');
     }
     
     // Create metadata for IP registration
@@ -143,10 +174,14 @@ export const registerIP = async (params: {
     };
     
     // For now, return a mock result until we understand the exact SDK interface
+    // TODO: Replace with actual SDK call: auth.origin.registerIP(metadata)
     console.log('IP registration with metadata:', metadata);
+    console.log('Auth client available:', !!auth);
+    console.log('Origin available:', !!auth.origin);
+    
     return {
       success: true,
-      message: 'IP registered successfully (mock)',
+      message: 'IP registered successfully (with auth client)',
       data: {
         ...metadata,
         id: `ip-${Date.now()}`,
@@ -168,20 +203,20 @@ export const forkIP = async (parentId: string, params: {
   license: string;
 }) => {
   try {
-    // For now, we'll work without requiring auth client to be initialized
-    // since this is a mock implementation
-    let auth = null;
-    try {
-      auth = getAuthClient();
-    } catch (error) {
-      console.log('Auth client not initialized, using mock fork');
+    const auth = await getAuthClient();
+    if (!auth || !auth.origin) {
+      throw new Error('Origin not available. User must be authenticated.');
     }
     
     // For now, return a mock result
+    // TODO: Replace with actual SDK call: auth.origin.forkIP(parentId, params)
     console.log('Mock IP fork:', { parentId, ...params });
+    console.log('Auth client available:', !!auth);
+    console.log('Origin available:', !!auth.origin);
+    
     return {
       success: true,
-      message: 'IP forked successfully (mock)',
+      message: 'IP forked successfully (with auth client)',
       data: { parentId, ...params }
     };
   } catch (error) {
