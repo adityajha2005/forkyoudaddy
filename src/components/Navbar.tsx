@@ -1,13 +1,157 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+// MetaMask type declarations
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      selectedAddress?: string;
+      on: (event: string, callback: (params: any) => void) => void;
+      removeListener: (event: string, callback: (params: any) => void) => void;
+    };
+  }
+}
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [account, setAccount] = useState<string>('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [showWalletDropdown, setShowWalletDropdown] = useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  // Check if MetaMask is installed
+  const isMetaMaskInstalled = () => {
+    return typeof window !== 'undefined' && typeof window.ethereum !== 'undefined';
+  };
+
+  // Connect to MetaMask
+  const connectWallet = async () => {
+    if (!isMetaMaskInstalled()) {
+      alert('Please install MetaMask to use this feature!');
+      return;
+    }
+
+    try {
+      setIsConnecting(true);
+      const accounts = await window.ethereum!.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        setIsConnected(true);
+                await switchToBasecamp();
+      }
+    } catch (error) {
+      console.error('Error connecting to MetaMask:', error);
+      alert('Failed to connect to MetaMask. Please try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const switchToBasecamp = async () => {
+    try {
+      await window.ethereum!.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: '0x1cbc67c35a', // 123420001114 in hex
+          chainName: 'Basecamp',
+          nativeCurrency: {
+            name: 'CAMP',
+            symbol: 'CAMP',
+            decimals: 18
+          },
+          rpcUrls: ['https://rpc-campnetwork.xyz'],
+          blockExplorerUrls: ['https://explorer.campnetwork.xyz']
+        }]
+      });
+    } catch (error) {
+      if ((error as any).code === 4902) {
+        try {
+          await window.ethereum!.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x1cbc67c35a' }]
+          });
+        } catch (switchError) {
+          console.error('Error switching to Basecamp:', switchError);
+        }
+      } else {
+        console.error('Error adding Basecamp network:', error);
+      }
+    }
+  };
+
+  // Disconnect wallet
+  const disconnectWallet = () => {
+    setAccount('');
+    setIsConnected(false);
+    setShowWalletDropdown(false);
+  };
+
+  // Copy wallet address to clipboard
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(account);
+      alert('Address copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy address:', error);
+      alert('Failed to copy address');
+    }
+  };
+
+  // Switch account (request new accounts)
+  const switchAccount = async () => {
+    try {
+      const accounts = await window.ethereum!.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        setIsConnected(true);
+        
+        // Ensure we're on Basecamp network
+        await switchToBasecamp();
+      }
+    } catch (error) {
+      console.error('Error switching account:', error);
+      alert('Failed to switch account. Please try again.');
+    }
+  };
+
+  // Check if already connected on component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (isMetaMaskInstalled() && window.ethereum?.selectedAddress) {
+        setAccount(window.ethereum.selectedAddress);
+        setIsConnected(true);
+      }
+    };
+    
+    checkConnection();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showWalletDropdown && !target.closest('.wallet-dropdown')) {
+        setShowWalletDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showWalletDropdown]);
 
   const navLinks = [
     { href: '/explore', label: 'EXPLORE', icon: '📚' },
@@ -54,9 +198,58 @@ const Navbar = () => {
 
           {/* Connect Wallet Button */}
           <div className="flex items-center space-x-4">
-            <button className="bg-pepe-green hover:bg-green-600 text-black font-bold px-6 py-2 rounded-lg border-2 border-black transition-all duration-200 shadow-sm hover:shadow-md">
-              🔗 CONNECT WALLET
-            </button>
+            {isConnected ? (
+              <div className="relative flex items-center space-x-2">
+                <button 
+                  onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                  className="wallet-dropdown bg-pepe-green hover:bg-green-600 text-black font-bold px-4 py-2 rounded-lg border-2 border-black transition-all duration-200 shadow-sm hover:shadow-md flex items-center space-x-2"
+                >
+                  <span>🔗</span>
+                  <span className="text-xs font-mono">
+                    {account.slice(0, 6)}...{account.slice(-4)}
+                  </span>
+                  <span className="text-xs">▼</span>
+                </button>
+                
+                {/* Wallet Dropdown */}
+                {showWalletDropdown && (
+                  <div className="wallet-dropdown absolute top-full right-0 mt-2 w-48 bg-white border-2 border-black rounded-lg shadow-lg z-50">
+                    <div className="p-2 space-y-1">
+                      <button
+                        onClick={copyAddress}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center space-x-2"
+                      >
+                        <span>📋</span>
+                        <span>Copy Address</span>
+                      </button>
+                      <button
+                        onClick={switchAccount}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center space-x-2"
+                      >
+                        <span>🔄</span>
+                        <span>Switch Account</span>
+                      </button>
+                      <div className="border-t border-gray-300 my-1"></div>
+                      <button
+                        onClick={disconnectWallet}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-red-100 text-red-600 rounded flex items-center space-x-2"
+                      >
+                        <span>🔌</span>
+                        <span>Disconnect</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button 
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className="bg-pepe-green hover:bg-green-600 disabled:bg-gray-400 text-black font-bold px-6 py-2 rounded-lg border-2 border-black transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
+              >
+                {isConnecting ? '🔄 CONNECTING...' : '🔗 CONNECT WALLET'}
+              </button>
+            )}
 
             {/* Mobile menu button */}
             <button
