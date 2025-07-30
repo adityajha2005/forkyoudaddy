@@ -16,6 +16,8 @@ interface IP {
   cid: string;
   contentURI: string;
   parentId?: string;
+  tags?: string[];
+  category?: string;
 }
 
 // For localStorage fallback
@@ -39,7 +41,9 @@ const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
   remixCount: supabaseIP.remix_count,
   cid: supabaseIP.ipfs_hash || '',
   contentURI: supabaseIP.ipfs_hash || '',
-  parentId: supabaseIP.parent_id
+  parentId: supabaseIP.parent_id,
+  tags: supabaseIP.tags || [],
+  category: supabaseIP.category || ''
 });
 
 // Convert local IP to Supabase format
@@ -51,7 +55,9 @@ const convertLocalIPToSupabase = (localIP: IP): Omit<SupabaseIP, 'id' | 'created
   license: localIP.license,
   author_address: localIP.author,
   ipfs_hash: localIP.cid,
-  parent_id: undefined
+  parent_id: undefined,
+  tags: localIP.tags || [],
+  category: localIP.category || ''
 });
 
 // Get all IPs with caching

@@ -29,6 +29,8 @@ export interface IP {
   remix_count: number;
   token_id?: string;
   transaction_hash?: string;
+  tags?: string[];
+  category?: string;
 }
 
 export interface User {

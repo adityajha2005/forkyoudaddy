@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import TagDisplay from '../components/TagDisplay';
 import { getAllIPs } from '../services/ipService';
+import { CATEGORIES, POPULAR_TAGS, getTagColor } from '../constants/tags';
 
 interface IP {
   id: string;
@@ -16,6 +18,8 @@ interface IP {
   cid: string;
   contentURI: string;
   parentId?: string;
+  tags?: string[];
+  category?: string;
 }
 
 interface SearchFilters {
@@ -28,6 +32,8 @@ interface SearchFilters {
   minRemixCount: number;
   authorFilter: string;
   isRemix: boolean | null;
+  selectedTags: string[];
+  selectedCategory: string;
 }
 
 const ExplorePage = () => {
@@ -45,7 +51,9 @@ const ExplorePage = () => {
     dateRange: 'all',
     minRemixCount: 0,
     authorFilter: '',
-    isRemix: null
+    isRemix: null,
+    selectedTags: [],
+    selectedCategory: ''
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -140,6 +148,21 @@ const ExplorePage = () => {
         }
         
         filtered = filtered.filter(ip => new Date(ip.createdAt) >= cutoffDate);
+      }
+
+      // Filter by category
+      if (filters.selectedCategory && filters.selectedCategory !== 'all') {
+        filtered = filtered.filter(ip => ip.category === filters.selectedCategory);
+      }
+
+      // Filter by tags
+      if (filters.selectedTags.length > 0) {
+        filtered = filtered.filter(ip => {
+          if (!ip.tags || ip.tags.length === 0) return false;
+          return filters.selectedTags.some(selectedTag => 
+            ip.tags!.includes(selectedTag)
+          );
+        });
       }
 
       // Sort results
@@ -255,7 +278,9 @@ const ExplorePage = () => {
       dateRange: 'all',
       minRemixCount: 0,
       authorFilter: '',
-      isRemix: null
+      isRemix: null,
+      selectedTags: [],
+      selectedCategory: ''
     });
   };
 
@@ -275,6 +300,8 @@ const ExplorePage = () => {
     if (filters.isRemix !== null) count++;
     if (filters.minRemixCount > 0) count++;
     if (filters.dateRange !== 'all') count++;
+    if (filters.selectedCategory && filters.selectedCategory !== 'all') count++;
+    if (filters.selectedTags.length > 0) count++;
     return count;
   };
 
@@ -478,6 +505,23 @@ const ExplorePage = () => {
                   <option value="remix">Remixes Only</option>
                 </select>
               </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">CATEGORY</label>
+                <select
+                  value={filters.selectedCategory}
+                  onChange={(e) => updateFilter('selectedCategory', e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
+                >
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Advanced Filters */}
@@ -516,6 +560,58 @@ const ExplorePage = () => {
                     <div className="px-4 py-2 bg-gray-100 rounded-lg text-center font-bold text-lg">
                       {filteredIps.length} IPs
                     </div>
+                  </div>
+                </div>
+
+                {/* Tag Selection */}
+                <div className="mt-6">
+                  <label className="block text-sm font-bold text-gray-700 mb-3">🏷️ TAGS</label>
+                  
+                  {/* Selected Tags */}
+                  {filters.selectedTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {filters.selectedTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getTagColor(tag)}`}
+                        >
+                          #{tag}
+                          <button
+                            onClick={() => {
+                              const newTags = filters.selectedTags.filter(t => t !== tag);
+                              updateFilter('selectedTags', newTags);
+                            }}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Popular Tags */}
+                  <div className="flex flex-wrap gap-2">
+                    {POPULAR_TAGS.slice(0, 30).map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          if (filters.selectedTags.includes(tag)) {
+                            const newTags = filters.selectedTags.filter(t => t !== tag);
+                            updateFilter('selectedTags', newTags);
+                          } else {
+                            updateFilter('selectedTags', [...filters.selectedTags, tag]);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          filters.selectedTags.includes(tag)
+                            ? `${getTagColor(tag)} ring-2 ring-pepe-green`
+                            : `${getTagColor(tag)} hover:opacity-80`
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -591,6 +687,19 @@ const ExplorePage = () => {
                         <span className="font-bold">{ip.remixCount}</span>
                       </div>
                     </div>
+
+                    {/* Tags and Category */}
+                    {(ip.tags && ip.tags.length > 0) || ip.category ? (
+                      <div className="mt-4">
+                        <TagDisplay
+                          tags={ip.tags}
+                          category={ip.category}
+                          maxTags={3}
+                          showCategory={true}
+                          className="text-xs"
+                        />
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Action Buttons */}

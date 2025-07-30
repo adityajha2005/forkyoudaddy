@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import TagSelector from '../components/TagSelector';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
 import { addIP, clearIPCache } from '../services/ipService';
@@ -12,6 +13,8 @@ interface CreateIPForm {
   license: string;
   content: string;
   file?: File;
+  tags: string[];
+  category: string;
 }
 
 const CreateIPPage = () => {
@@ -22,7 +25,9 @@ const CreateIPPage = () => {
     description: '',
     contentType: 'text',
     license: 'MIT',
-    content: ''
+    content: '',
+    tags: [],
+    category: ''
   });
 
   const licenseOptions = [
@@ -34,7 +39,7 @@ const CreateIPPage = () => {
     { value: 'CC-BY-NC-SA', label: 'Creative Commons Attribution-NonCommercial-ShareAlike' }
   ];
 
-  const handleInputChange = (field: keyof CreateIPForm, value: string | File) => {
+  const handleInputChange = (field: keyof CreateIPForm, value: string | File | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -101,7 +106,9 @@ const CreateIPPage = () => {
           license: formData.license,
           author: window.ethereum?.selectedAddress || 'Unknown',
           cid: ipfsResult.cid,
-          contentURI: ipfsResult.url
+          contentURI: ipfsResult.url,
+          tags: formData.tags,
+          category: formData.category
         });
 
         alert('IP registered successfully!');
@@ -257,6 +264,17 @@ const CreateIPPage = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Tags and Categories */}
+              <div>
+                <TagSelector
+                  selectedTags={formData.tags}
+                  selectedCategory={formData.category}
+                  onTagsChange={(tags) => handleInputChange('tags', tags)}
+                  onCategoryChange={(category) => handleInputChange('category', category)}
+                  maxTags={10}
+                />
               </div>
 
               {/* Submit Button */}

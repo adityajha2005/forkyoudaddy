@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { forkIP } from '../services/campOrigin';
+import TagSelector from '../components/TagSelector';
+import TagDisplay from '../components/TagDisplay';
+import { forkIP, registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
 import { addIP } from '../services/ipService';
 
@@ -17,6 +19,8 @@ interface IP {
   remixCount: number;
   cid: string;
   contentURI: string;
+  tags?: string[];
+  category?: string;
 }
 
 interface RemixForm {
@@ -25,6 +29,8 @@ interface RemixForm {
   content: string;
   license: string;
   file?: File;
+  tags: string[];
+  category: string;
 }
 
 const RemixPage = () => {
@@ -36,7 +42,9 @@ const RemixPage = () => {
     title: '',
     description: '',
     content: '',
-    license: 'MIT'
+    license: 'MIT',
+    tags: [],
+    category: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForkAnimation, setShowForkAnimation] = useState(false);
@@ -56,7 +64,9 @@ const RemixPage = () => {
           title: `Remix: ${cleanOriginalTitle}`,
           description: `A remix of "${cleanOriginalTitle}"`,
           content: '', // Don't prefill content - let user add their own
-          license: ip.license
+          license: ip.license,
+          tags: ip.tags || [],
+          category: ip.category || ''
         });
       }
     } else {
@@ -65,7 +75,7 @@ const RemixPage = () => {
     }
   }, [location.state, navigate]);
 
-  const handleInputChange = (field: keyof RemixForm, value: string | File) => {
+  const handleInputChange = (field: keyof RemixForm, value: string | File | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -123,12 +133,13 @@ const RemixPage = () => {
         throw new Error(ipfsResult.error || 'IPFS upload failed');
       }
 
-      // Fork IP via Camp Origin SDK
-      const result = await forkIP(originalIP.id, {
+      // Register IP onchain via Camp Origin SDK
+      const result = await registerIP({
         title: formData.title,
         description: formData.description,
         content: formData.content,
-        license: formData.license
+        license: formData.license,
+        contentURI: ipfsResult.url
       });
 
       if (result.success) {
@@ -153,7 +164,9 @@ const RemixPage = () => {
                 license: formData.license,
                 author: 'Current User',
                 cid: ipfsResult.cid,
-                contentURI: ipfsResult.url
+                contentURI: ipfsResult.url,
+                tags: formData.tags,
+                category: formData.category
               }, originalIP.id);
             };
             reader.readAsDataURL(formData.file);
@@ -176,7 +189,9 @@ const RemixPage = () => {
           license: formData.license,
           author: 'Current User', // This would come from wallet
           cid: ipfsResult.cid,
-          contentURI: ipfsResult.url
+          contentURI: ipfsResult.url,
+          tags: formData.tags,
+          category: formData.category
         }, originalIP.id);
 
         // Show forking animation
@@ -334,6 +349,21 @@ const RemixPage = () => {
                         </a>
                       </div>
                     </div>
+
+                    {/* Tags and Category */}
+                    {(originalIP.tags && originalIP.tags.length > 0) || originalIP.category ? (
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Tags & Category</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          <TagDisplay
+                            tags={originalIP.tags}
+                            category={originalIP.category}
+                            maxTags={5}
+                            showCategory={true}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Right side - Full height image */}
@@ -441,6 +471,21 @@ const RemixPage = () => {
                       </a>
                     </div>
                   </div>
+
+                    {/* Tags and Category */}
+                    {(originalIP.tags && originalIP.tags.length > 0) || originalIP.category ? (
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Tags & Category</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          <TagDisplay
+                            tags={originalIP.tags}
+                            category={originalIP.category}
+                            maxTags={5}
+                            showCategory={true}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                 </div>
               )}
 
@@ -574,6 +619,17 @@ const RemixPage = () => {
                       <option value="CC-BY-SA">CC-BY-SA</option>
                       <option value="CC-BY">CC-BY</option>
                     </select>
+                  </div>
+
+                  {/* Tags and Categories */}
+                  <div>
+                    <TagSelector
+                      selectedTags={formData.tags}
+                      selectedCategory={formData.category}
+                      onTagsChange={(tags) => handleInputChange('tags', tags)}
+                      onCategoryChange={(category) => handleInputChange('category', category)}
+                      maxTags={10}
+                    />
                   </div>
 
                   {/* Submit Button */}
