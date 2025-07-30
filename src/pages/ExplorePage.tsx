@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TagDisplay from '../components/TagDisplay';
 import { getAllIPs } from '../services/ipService';
+import { userService } from '../services/supabase';
 import { CATEGORIES, POPULAR_TAGS, getTagColor } from '../constants/tags';
 import { generateContentSuggestions } from '../services/aiService';
 
@@ -60,6 +61,8 @@ const ExplorePage = () => {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [aiSearchSuggestions, setAiSearchSuggestions] = useState<string[]>([]);
   const [isGeneratingAISuggestions, setIsGeneratingAISuggestions] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
+  const [currentUserAddress, setCurrentUserAddress] = useState<string>('');
 
   // Load IPs with better error handling and caching
   const loadIPs = useCallback(async () => {
@@ -81,6 +84,26 @@ const ExplorePage = () => {
   useEffect(() => {
     loadIPs();
   }, [loadIPs]);
+
+  // Load current user and following status
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (window.ethereum?.selectedAddress) {
+        const address = window.ethereum.selectedAddress;
+        setCurrentUserAddress(address);
+        
+        try {
+          const following = await userService.getFollowing(address);
+          const followingSet = new Set(following.map(user => user.wallet_address));
+          setFollowingUsers(followingSet);
+        } catch (error) {
+          console.error('Error loading following users:', error);
+        }
+      }
+    };
+    
+    loadUserData();
+  }, []);
 
   // Advanced filtering and sorting
   useEffect(() => {
@@ -225,6 +248,34 @@ const ExplorePage = () => {
         mode: 'view'
       } 
     });
+  };
+
+  const handleFollow = async (authorAddress: string) => {
+    if (!currentUserAddress) {
+      alert('Please connect your wallet to follow users');
+      return;
+    }
+
+    try {
+      if (followingUsers.has(authorAddress)) {
+        await userService.unfollowUser(currentUserAddress, authorAddress);
+        setFollowingUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(authorAddress);
+          return newSet;
+        });
+      } else {
+        await userService.followUser(currentUserAddress, authorAddress);
+        setFollowingUsers(prev => new Set([...prev, authorAddress]));
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+      alert('Failed to follow/unfollow user');
+    }
+  };
+
+  const handleViewProfile = (authorAddress: string) => {
+    navigate(`/profile/${authorAddress}`);
   };
 
   const getContentTypeIcon = (contentType: string) => {
@@ -736,14 +787,36 @@ const ExplorePage = () => {
                     {/* IP Metadata */}
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center space-x-4">
-                        <a 
-                          href={`https://explorer.campnetwork.xyz/address/${ip.author}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline"
-                        >
-                          By {shortenAddress(ip.author)}
-                        </a>
+                        <div className="flex items-center space-x-2">
+                          <a 
+                            href={`https://explorer.campnetwork.xyz/address/${ip.author}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            By {shortenAddress(ip.author)}
+                          </a>
+                          {currentUserAddress && currentUserAddress !== ip.author && (
+                            <>
+                              <button
+                                onClick={() => handleViewProfile(ip.author)}
+                                className="text-purple-600 hover:text-purple-800 underline"
+                              >
+                                👤 Profile
+                              </button>
+                              <button
+                                onClick={() => handleFollow(ip.author)}
+                                className={`px-2 py-1 rounded text-xs font-bold border ${
+                                  followingUsers.has(ip.author)
+                                    ? 'bg-gray-500 text-white border-gray-600'
+                                    : 'bg-pepe-green text-black border-black hover:bg-green-600'
+                                }`}
+                              >
+                                {followingUsers.has(ip.author) ? 'Unfollow' : 'Follow'}
+                              </button>
+                            </>
+                          )}
+                        </div>
                         <span>{formatDate(ip.createdAt)}</span>
                       </div>
                       <div className="flex items-center space-x-3">

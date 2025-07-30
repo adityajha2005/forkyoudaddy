@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllIPs } from '../services/ipService';
-import { supabaseIPService } from '../services/supabase';
+import { userService, type User } from '../services/supabase';
 
 interface IP {
   id: string;
@@ -37,8 +37,11 @@ const UserDashboard = () => {
     averageRemixCount: 0
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'created' | 'remixed' | 'stats'>('created');
+  const [activeTab, setActiveTab] = useState<'profile' | 'created' | 'remixed' | 'stats'>('profile');
   const [walletAddress, setWalletAddress] = useState<string>('');
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -54,6 +57,24 @@ const UserDashboard = () => {
         }
         
         setWalletAddress(address);
+        
+        // Load user profile data
+        const profile = await userService.getUser(address);
+        setUserProfile(profile);
+        
+        // Load followers and following
+        const followersData = await userService.getFollowers(address);
+        const followingData = await userService.getFollowing(address);
+        setFollowers(followersData);
+        setFollowing(followingData);
+        
+        // Debug: Log the counts to help identify the issue
+        console.log('Dashboard Debug:', {
+          profileFollowingCount: profile.following_count,
+          actualFollowingCount: followingData.length,
+          profileFollowersCount: profile.followers_count,
+          actualFollowersCount: followersData.length
+        });
         
         // Load all IPs
         const allIPs = await getAllIPs();
@@ -228,6 +249,16 @@ const UserDashboard = () => {
           <div className="bg-white border-2 border-black rounded-lg p-6 mb-8">
             <div className="flex space-x-4 mb-6">
               <button
+                onClick={() => setActiveTab('profile')}
+                className={`px-6 py-3 rounded-lg font-bold transition-colors ${
+                  activeTab === 'profile'
+                    ? 'bg-pepe-green text-black'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                👤 Profile
+              </button>
+              <button
                 onClick={() => setActiveTab('created')}
                 className={`px-6 py-3 rounded-lg font-bold transition-colors ${
                   activeTab === 'created'
@@ -260,6 +291,140 @@ const UserDashboard = () => {
             </div>
 
             {/* Tab Content */}
+            {activeTab === 'profile' && userProfile && (
+              <div>
+                <h3 className="text-xl font-bold text-black mb-6">Your Profile</h3>
+                
+                {/* Profile Header */}
+                <div className="bg-gradient-to-r from-pepe-green to-dank-yellow border-2 border-black rounded-lg p-6 mb-6">
+                  <div className="flex items-center space-x-6">
+                    {/* Avatar */}
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-3xl font-bold text-black border-4 border-white shadow-lg">
+                      {userProfile.username ? userProfile.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    
+                    {/* Profile Info */}
+                    <div className="flex-1">
+                      <h2 className="text-3xl font-black text-black mb-2">
+                        {userProfile.username || shortenAddress(userProfile.wallet_address)}
+                      </h2>
+                      <p className="text-gray-700 mb-2">
+                        {shortenAddress(userProfile.wallet_address)}
+                      </p>
+                      {userProfile.bio && (
+                        <p className="text-gray-600 italic">"{userProfile.bio}"</p>
+                      )}
+                    </div>
+                    
+                    {/* Edit Profile Button */}
+                    <button
+                      onClick={() => alert('Profile editing coming soon!')}
+                      className="bg-white hover:bg-gray-100 text-black font-bold px-6 py-3 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 shadow-lg"
+                    >
+                      ✏️ Edit Profile
+                    </button>
+                  </div>
+                </div>
+
+                {/* Profile Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white border-2 border-black rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-pepe-green mb-1">{userProfile.total_ips}</div>
+                    <div className="text-sm text-gray-600">IPs Created</div>
+                  </div>
+                  <div className="bg-white border-2 border-black rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-dank-yellow mb-1">{userProfile.total_remixes}</div>
+                    <div className="text-sm text-gray-600">Remixes Made</div>
+                  </div>
+                  <div className="bg-white border-2 border-black rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-500 mb-1">{followers.length}</div>
+                    <div className="text-sm text-gray-600">Followers</div>
+                  </div>
+                  <div className="bg-white border-2 border-black rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-purple-500 mb-1">{following.length}</div>
+                    <div className="text-sm text-gray-600">Following</div>
+                  </div>
+                </div>
+
+                {/* Followers and Following */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Followers */}
+                  <div className="bg-white border-2 border-black rounded-lg p-4">
+                    <h4 className="text-lg font-bold text-black mb-4">👥 Followers ({followers.length})</h4>
+                    {followers.length === 0 ? (
+                      <div className="text-center py-4">
+                        <p className="text-gray-500">No followers yet. Create great content to attract followers!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {followers.slice(0, 5).map((follower) => (
+                          <div key={follower.wallet_address} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-gradient-to-br from-pepe-green to-dank-yellow rounded-full flex items-center justify-center text-sm font-bold text-black">
+                                {follower.username ? follower.username.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm">{follower.username || shortenAddress(follower.wallet_address)}</p>
+                                <p className="text-xs text-gray-500">{shortenAddress(follower.wallet_address)}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => navigate(`/profile/${follower.wallet_address}`)}
+                              className="bg-pepe-green hover:bg-green-600 text-black text-xs font-bold px-3 py-1 rounded border transition-colors"
+                            >
+                              View
+                            </button>
+                          </div>
+                        ))}
+                        {followers.length > 5 && (
+                          <p className="text-center text-sm text-gray-500">
+                            +{followers.length - 5} more followers
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Following */}
+                  <div className="bg-white border-2 border-black rounded-lg p-4">
+                    <h4 className="text-lg font-bold text-black mb-4">👤 Following ({following.length})</h4>
+                    {following.length === 0 ? (
+                      <div className="text-center py-4">
+                        <p className="text-gray-500">Not following anyone yet. Discover creators to follow!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {following.slice(0, 5).map((followedUser) => (
+                          <div key={followedUser.wallet_address} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-gradient-to-br from-pepe-green to-dank-yellow rounded-full flex items-center justify-center text-sm font-bold text-black">
+                                {followedUser.username ? followedUser.username.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm">{followedUser.username || shortenAddress(followedUser.wallet_address)}</p>
+                                <p className="text-xs text-gray-500">{shortenAddress(followedUser.wallet_address)}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => navigate(`/profile/${followedUser.wallet_address}`)}
+                              className="bg-dank-yellow hover:bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded border transition-colors"
+                            >
+                              View
+                            </button>
+                          </div>
+                        ))}
+                        {following.length > 5 && (
+                          <p className="text-center text-sm text-gray-500">
+                            +{following.length - 5} more following
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'created' && (
               <div>
                 <h3 className="text-xl font-bold text-black mb-4">Your Created IPs</h3>

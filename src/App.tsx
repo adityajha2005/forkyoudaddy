@@ -16,6 +16,7 @@ import RemixGraphPage from './pages/RemixGraphPage';
 import UserDashboard from './pages/UserDashboard';
 import IPAnalyticsPage from './pages/IPAnalyticsPage';
 import AITestPage from './components/AITestPage';
+import UserProfile from './components/UserProfile';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -114,6 +115,9 @@ function App() {
           
           {/* AI Test Page */}
           <Route path="/ai-test" element={<AITestPage />} />
+          
+          {/* User Profile Page */}
+          <Route path="/profile/:address" element={<UserProfile currentUserAddress={account} />} />
         </Routes>
 
         {/* PWA Install Prompt */}

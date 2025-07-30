@@ -42,6 +42,15 @@ export interface User {
   total_remixes: number;
   avatar_url?: string;
   bio?: string;
+  followers_count?: number;
+  following_count?: number;
+}
+
+export interface Follow {
+  id: string;
+  follower_address: string;
+  following_address: string;
+  created_at: string;
 }
 
 export interface Comment {
@@ -293,26 +302,25 @@ export const userService = {
         throw new Error('Supabase not configured');
       }
 
-      const { data, error } = await supabase
+      // First try to get existing user
+      const { data: existingUser, error: getError } = await supabase
         .from('users')
         .select('*')
         .eq('wallet_address', walletAddress)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-        throw error;
+      if (existingUser) {
+        return existingUser;
       }
 
-      if (data) {
-        return data;
-      }
-
-      // Create new user if not found
+      // If user doesn't exist, create new user
       const newUser: User = {
         wallet_address: walletAddress,
         created_at: new Date().toISOString(),
         total_ips: 0,
-        total_remixes: 0
+        total_remixes: 0,
+        followers_count: 0,
+        following_count: 0
       };
 
       const { data: createdUser, error: createError } = await supabase
@@ -321,7 +329,12 @@ export const userService = {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        console.error('Error creating user:', createError);
+        // If creation fails, return a basic user object
+        return newUser;
+      }
+      
       return createdUser;
     } catch (error) {
       console.error('Failed to get/create user in Supabase:', error);
@@ -334,7 +347,9 @@ export const userService = {
           wallet_address: walletAddress,
           created_at: new Date().toISOString(),
           total_ips: 0,
-          total_remixes: 0
+          total_remixes: 0,
+          followers_count: 0,
+          following_count: 0
         };
         localUsers.push(user);
         localStorage.setItem('users', JSON.stringify(localUsers));
@@ -374,6 +389,210 @@ export const userService = {
         localUsers[index] = { ...localUsers[index], ...updates };
         localStorage.setItem('users', JSON.stringify(localUsers));
       }
+    }
+  },
+
+  // Follow a user
+  async followUser(followerAddress: string, followingAddress: string): Promise<void> {
+    try {
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase not configured');
+      }
+
+      // Check if already following
+      const { data: existingFollow } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_address', followerAddress)
+        .eq('following_address', followingAddress)
+        .single();
+
+      if (existingFollow) {
+        throw new Error('Already following this user');
+      }
+
+      // Create follow relationship
+      const followData: Omit<Follow, 'id'> = {
+        follower_address: followerAddress,
+        following_address: followingAddress,
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('follows')
+        .insert([followData]);
+
+      if (error) {
+        console.error('Follow insert error:', error);
+        // If RLS blocks the insert, fallback to localStorage
+        throw error;
+      }
+
+      // Update follower counts
+      const followingUser = await this.getUser(followingAddress);
+      const followerUser = await this.getUser(followerAddress);
+      
+      await this.updateUserStats(followingAddress, { 
+        followers_count: (followingUser.followers_count || 0) + 1 
+      });
+      await this.updateUserStats(followerAddress, { 
+        following_count: (followerUser.following_count || 0) + 1 
+      });
+
+    } catch (error) {
+      console.error('Failed to follow user in Supabase:', error);
+      // Fallback to localStorage
+      const localFollows = JSON.parse(localStorage.getItem('follows') || '[]');
+      const newFollow = {
+        id: `follow-${Date.now()}`,
+        follower_address: followerAddress,
+        following_address: followingAddress,
+        created_at: new Date().toISOString()
+      };
+      localFollows.push(newFollow);
+      localStorage.setItem('follows', JSON.stringify(localFollows));
+      
+      // Also update local user stats
+      const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const followingIndex = localUsers.findIndex((u: User) => u.wallet_address === followingAddress);
+      const followerIndex = localUsers.findIndex((u: User) => u.wallet_address === followerAddress);
+      
+      if (followingIndex !== -1) {
+        localUsers[followingIndex].followers_count = (localUsers[followingIndex].followers_count || 0) + 1;
+      }
+      if (followerIndex !== -1) {
+        localUsers[followerIndex].following_count = (localUsers[followerIndex].following_count || 0) + 1;
+      }
+      localStorage.setItem('users', JSON.stringify(localUsers));
+    }
+  },
+
+  // Unfollow a user
+  async unfollowUser(followerAddress: string, followingAddress: string): Promise<void> {
+    try {
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase not configured');
+      }
+
+      const { error } = await supabase
+        .from('follows')
+        .delete()
+        .eq('follower_address', followerAddress)
+        .eq('following_address', followingAddress);
+
+      if (error) throw error;
+
+      // Update follower counts
+      const followingUser = await this.getUser(followingAddress);
+      const followerUser = await this.getUser(followerAddress);
+      
+      await this.updateUserStats(followingAddress, { 
+        followers_count: Math.max(0, (followingUser.followers_count || 0) - 1)
+      });
+      await this.updateUserStats(followerAddress, { 
+        following_count: Math.max(0, (followerUser.following_count || 0) - 1)
+      });
+
+    } catch (error) {
+      console.error('Failed to unfollow user in Supabase:', error);
+      // Fallback to localStorage
+      const localFollows = JSON.parse(localStorage.getItem('follows') || '[]');
+      const index = localFollows.findIndex((follow: Follow) => 
+        follow.follower_address === followerAddress && follow.following_address === followingAddress
+      );
+      if (index !== -1) {
+        localFollows.splice(index, 1);
+        localStorage.setItem('follows', JSON.stringify(localFollows));
+      }
+    }
+  },
+
+  // Check if user is following another user
+  async isFollowing(followerAddress: string, followingAddress: string): Promise<boolean> {
+    try {
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase not configured');
+      }
+
+      const { data } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_address', followerAddress)
+        .eq('following_address', followingAddress)
+        .single();
+
+      return !!data;
+    } catch (error) {
+      console.error('Failed to check follow status in Supabase:', error);
+      // Fallback to localStorage
+      const localFollows = JSON.parse(localStorage.getItem('follows') || '[]');
+      return localFollows.some((follow: Follow) => 
+        follow.follower_address === followerAddress && follow.following_address === followingAddress
+      );
+    }
+  },
+
+  // Get user's followers
+  async getFollowers(userAddress: string): Promise<User[]> {
+    try {
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase not configured');
+      }
+
+      const { data: follows, error } = await supabase
+        .from('follows')
+        .select('follower_address')
+        .eq('following_address', userAddress);
+
+      if (error) throw error;
+
+      const followers = await Promise.all(
+        follows.map(follow => this.getUser(follow.follower_address))
+      );
+
+      return followers;
+    } catch (error) {
+      console.error('Failed to get followers from Supabase:', error);
+      // Fallback to localStorage
+      const localFollows = JSON.parse(localStorage.getItem('follows') || '[]');
+      const followerAddresses = localFollows
+        .filter((follow: Follow) => follow.following_address === userAddress)
+        .map((follow: Follow) => follow.follower_address);
+      
+      const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      return localUsers.filter((user: User) => followerAddresses.includes(user.wallet_address));
+    }
+  },
+
+  // Get users that a user is following
+  async getFollowing(userAddress: string): Promise<User[]> {
+    try {
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase not configured');
+      }
+
+      const { data: follows, error } = await supabase
+        .from('follows')
+        .select('following_address')
+        .eq('follower_address', userAddress);
+
+      if (error) throw error;
+
+      const following = await Promise.all(
+        follows.map(follow => this.getUser(follow.following_address))
+      );
+
+      return following;
+    } catch (error) {
+      console.error('Failed to get following from Supabase:', error);
+      // Fallback to localStorage
+      const localFollows = JSON.parse(localStorage.getItem('follows') || '[]');
+      const followingAddresses = localFollows
+        .filter((follow: Follow) => follow.follower_address === userAddress)
+        .map((follow: Follow) => follow.following_address);
+      
+      const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      return localUsers.filter((user: User) => followingAddresses.includes(user.wallet_address));
     }
   }
 };
