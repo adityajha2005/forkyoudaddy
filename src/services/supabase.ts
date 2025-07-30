@@ -30,7 +30,7 @@ export interface IP {
   token_id?: string;
   transaction_hash?: string;
   tags?: string[];
-  category?: string;
+  category?: string; // Optional - not stored in Supabase
   comment_count?: number;
 }
 
@@ -121,17 +121,36 @@ export const ipService = {
         throw new Error('Supabase not configured');
       }
 
+      // Filter out fields that don't exist in Supabase table
+      const supabaseData = {
+        id: newIP.id,
+        title: newIP.title,
+        description: newIP.description,
+        content: newIP.content,
+        content_type: newIP.content_type,
+        license: newIP.license,
+        author_address: newIP.author_address,
+        ipfs_hash: newIP.ipfs_hash,
+        parent_id: newIP.parent_id,
+        created_at: newIP.created_at,
+        remix_count: newIP.remix_count,
+        token_id: newIP.token_id,
+        transaction_hash: newIP.transaction_hash,
+        comment_count: newIP.comment_count
+        // Note: tags and category fields are excluded as they don't exist in Supabase table
+      };
+
       const { data, error } = await supabase
         .from('ips')
-        .insert([newIP])
+        .insert([supabaseData])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Also save to localStorage as backup
+      // Also save to localStorage as backup (including category)
       const localIPs = JSON.parse(localStorage.getItem('ips') || '[]');
-      localIPs.push(data);
+      localIPs.push(newIP);
       localStorage.setItem('ips', JSON.stringify(localIPs));
 
       return data;

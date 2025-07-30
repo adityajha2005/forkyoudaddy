@@ -19,6 +19,8 @@ interface IP {
   tags?: string[];
   category?: string;
   commentCount?: number;
+  tokenId?: string | null;
+  transactionHash?: string | null;
 }
 
 // For localStorage fallback
@@ -43,9 +45,11 @@ const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
   cid: supabaseIP.ipfs_hash || '',
   contentURI: supabaseIP.ipfs_hash || '',
   parentId: supabaseIP.parent_id,
-  tags: supabaseIP.tags || [],
-  category: supabaseIP.category || '',
-  commentCount: supabaseIP.comment_count || 0
+  tags: [], // Tags not stored in Supabase
+  category: undefined, // Category not stored in Supabase
+  commentCount: supabaseIP.comment_count || 0,
+  tokenId: supabaseIP.token_id || null,
+  transactionHash: supabaseIP.transaction_hash || null
 });
 
 // Convert local IP to Supabase format
@@ -58,9 +62,10 @@ const convertLocalIPToSupabase = (localIP: IP): Omit<SupabaseIP, 'id' | 'created
   author_address: localIP.author,
   ipfs_hash: localIP.cid,
   parent_id: undefined,
-  tags: localIP.tags || [],
-  category: localIP.category || '',
-  comment_count: localIP.commentCount || 0
+  // Note: tags and category fields are excluded as they don't exist in Supabase table
+  comment_count: localIP.commentCount || 0,
+  token_id: localIP.tokenId || undefined,
+  transaction_hash: localIP.transactionHash || undefined
 });
 
 // Get all IPs with caching
@@ -78,7 +83,7 @@ export const getAllIPs = async (): Promise<IP[]> => {
       const supabaseIPs = await supabaseIPService.getAllIPs();
       const convertedIPs = supabaseIPs.map(convertSupabaseIPToLocal);
       
-      // Update cache
+      // Update cache with only Supabase data
       cachedIPs = convertedIPs;
       lastLoadTime = now;
       
@@ -87,7 +92,7 @@ export const getAllIPs = async (): Promise<IP[]> => {
     } catch (supabaseError) {
       console.warn('Supabase fetch failed, falling back to localStorage:', supabaseError);
       
-      // Fallback to localStorage
+      // Only use localStorage if Supabase completely fails
       const storedIPs = localStorage.getItem(STORAGE_KEY);
       if (storedIPs) {
         const ips = JSON.parse(storedIPs);
@@ -137,10 +142,8 @@ export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>, par
         });
       }
       
-      // Update cache
-      const existingIPs = await getAllIPs();
-      cachedIPs = [convertedIP, ...existingIPs];
-      lastLoadTime = Date.now();
+      // Clear cache to force fresh load from Supabase
+      clearIPCache();
       
       console.log('Added new IP to Supabase:', { title: convertedIP.title, id: convertedIP.id, parentId });
       return convertedIP;

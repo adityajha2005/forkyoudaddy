@@ -167,7 +167,7 @@ const RemixPage = () => {
                 content: base64Content,
                 contentType: 'image',
                 license: formData.license,
-                author: 'Current User',
+                author: window.ethereum?.selectedAddress || 'Unknown',
                 cid: ipfsResult.cid,
                 contentURI: ipfsResult.url,
                 tags: formData.tags,
@@ -192,7 +192,7 @@ const RemixPage = () => {
           content: contentToStore,
           contentType: contentType,
           license: formData.license,
-          author: 'Current User', // This would come from wallet
+          author: window.ethereum?.selectedAddress || 'Unknown',
           cid: ipfsResult.cid,
           contentURI: ipfsResult.url,
           tags: formData.tags,

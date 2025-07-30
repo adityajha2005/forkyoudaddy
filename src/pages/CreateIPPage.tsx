@@ -159,7 +159,7 @@ const CreateIPPage = () => {
     }
   };
 
-  const applyAISuggestion = (suggestion: AISuggestion) => {
+  const applyAISuggestion = (suggestion: AISuggestion, autoSubmit: boolean = false) => {
     setFormData(prev => ({
       ...prev,
       title: suggestion.title.replace('AI Suggestion: ', ''),
@@ -168,7 +168,20 @@ const CreateIPPage = () => {
       tags: [...prev.tags, ...suggestion.tags.filter(tag => !prev.tags.includes(tag))]
     }));
     setShowAIPanel(false);
-    alert('AI suggestion applied to your form!');
+    
+    if (autoSubmit) {
+      // Auto-submit after a short delay to ensure form is updated
+      setTimeout(() => {
+        const form = document.querySelector('form');
+        if (form) {
+          const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+          form.dispatchEvent(submitEvent);
+        }
+      }, 100);
+      alert('AI suggestion applied and submitting automatically! 🚀');
+    } else {
+      alert('AI suggestion applied to your form! Click "CREATE IP" to submit.');
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -222,7 +235,9 @@ const CreateIPPage = () => {
           cid: ipfsResult.cid,
           contentURI: ipfsResult.url,
           tags: formData.tags,
-          category: formData.category
+          category: formData.category,
+          tokenId: result.data?.tokenId?.toString() || null,
+          transactionHash: result.data?.transactionHash || null
         });
 
         alert('IP registered successfully!');
@@ -286,7 +301,7 @@ const CreateIPPage = () => {
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <button
                     type="button"
                     onClick={generateAISuggestions}
@@ -313,6 +328,24 @@ const CreateIPPage = () => {
                   >
                     {isGeneratingAI ? '🔄 GENERATING...' : '😂 GENERATE MEME'}
                   </button>
+                  
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (aiPrompt.trim()) {
+                        await generateAISuggestions();
+                        if (aiSuggestions.length > 0) {
+                          applyAISuggestion(aiSuggestions[0], true);
+                        }
+                      } else {
+                        alert('Please enter a prompt first!');
+                      }
+                    }}
+                    disabled={isGeneratingAI}
+                    className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    {isGeneratingAI ? '🔄 CREATING...' : '🚀 CREATE & SUBMIT'}
+                  </button>
                 </div>
 
                 {/* AI Suggestions */}
@@ -333,13 +366,22 @@ const CreateIPPage = () => {
                                 </span>
                               ))}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => applyAISuggestion(suggestion)}
-                              className="bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105"
-                            >
-                              USE THIS
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => applyAISuggestion(suggestion, false)}
+                                className="bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105"
+                              >
+                                APPLY
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => applyAISuggestion(suggestion, true)}
+                                className="bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105"
+                              >
+                                APPLY & SUBMIT 🚀
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
