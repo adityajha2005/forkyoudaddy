@@ -15,6 +15,7 @@ import RemixPage from './pages/RemixPage';
 import RemixGraphPage from './pages/RemixGraphPage';
 import UserDashboard from './pages/UserDashboard';
 import IPAnalyticsPage from './pages/IPAnalyticsPage';
+import AITestPage from './components/AITestPage';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -110,6 +111,9 @@ function App() {
           
           {/* IP Details Page (for future use) */}
           <Route path="/ip/:id" element={<RemixPage />} />
+          
+          {/* AI Test Page */}
+          <Route path="/ai-test" element={<AITestPage />} />
         </Routes>
 
         {/* PWA Install Prompt */}

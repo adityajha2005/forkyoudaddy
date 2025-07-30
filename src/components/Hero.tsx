@@ -190,8 +190,8 @@ const Hero = () => {
             <h3 className="text-lg font-bold text-gray-600 mb-6">What you can create & remix:</h3>
             <div className="flex flex-wrap justify-center gap-4 mb-8">
               <div className="flex items-center space-x-2 bg-pepe-green text-black px-4 py-2 rounded-full border-2 border-black font-bold">
-                <span>🎨</span>
-                <span>AI PROMPTS</span>
+                <span>🤖</span>
+                <span>AI CONTENT</span>
               </div>
               <div className="flex items-center space-x-2 bg-dank-yellow text-black px-4 py-2 rounded-full border-2 border-black font-bold">
                 <span>😂</span>
@@ -200,6 +200,10 @@ const Hero = () => {
               <div className="flex items-center space-x-2 bg-blue-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
                 <span>📚</span>
                 <span>KNOWLEDGE</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-meme-white text-black px-4 py-2 rounded-full border-2 border-black font-bold">
+                <span>🎨</span>
+                <span>ART</span>
               </div>
             </div>
           </div>
@@ -252,6 +256,8 @@ const Hero = () => {
               </span>
             </button>
           </div>
+
+
 
           {/* Call to action text */}
           <div className="mt-8 text-center">

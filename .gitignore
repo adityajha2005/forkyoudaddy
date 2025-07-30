@@ -24,4 +24,7 @@ dist-ssr
 *.sw?
 .env
 .cursor/
-.env
+
+# Documentation files
+*.md
+*.mdc

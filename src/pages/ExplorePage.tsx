@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TagDisplay from '../components/TagDisplay';
 import { getAllIPs } from '../services/ipService';
 import { CATEGORIES, POPULAR_TAGS, getTagColor } from '../constants/tags';
+import { generateContentSuggestions } from '../services/aiService';
 
 interface IP {
   id: string;
@@ -57,6 +58,8 @@ const ExplorePage = () => {
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [aiSearchSuggestions, setAiSearchSuggestions] = useState<string[]>([]);
+  const [isGeneratingAISuggestions, setIsGeneratingAISuggestions] = useState(false);
 
   // Load IPs with better error handling and caching
   const loadIPs = useCallback(async () => {
@@ -305,6 +308,46 @@ const ExplorePage = () => {
     return count;
   };
 
+  // AI-powered search suggestions
+  const generateAISearchSuggestions = async (searchTerm: string) => {
+    if (!searchTerm.trim() || searchTerm.length < 3) {
+      setAiSearchSuggestions([]);
+      return;
+    }
+
+    setIsGeneratingAISuggestions(true);
+    try {
+      // Add ForkYouDaddy context to search
+      const enhancedSearchTerm = `ForkYouDaddy platform search: ${searchTerm}`;
+      const result = await generateContentSuggestions(enhancedSearchTerm, 'text');
+      if (result.success && result.suggestions.length > 0) {
+        // Extract search suggestions from AI content
+        const suggestions = result.suggestions.map(suggestion => {
+          const words = suggestion.content.split(' ');
+          return words.slice(0, 3).join(' '); // Take first 3 words as suggestion
+        }).filter(suggestion => suggestion.length > 0);
+        
+        setAiSearchSuggestions(suggestions.slice(0, 5)); // Limit to 5 suggestions
+      } else {
+        setAiSearchSuggestions([]);
+      }
+    } catch (error) {
+      console.error('AI search suggestions failed:', error);
+      setAiSearchSuggestions([]);
+    } finally {
+      setIsGeneratingAISuggestions(false);
+    }
+  };
+
+  // Generate AI suggestions when search term changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      generateAISearchSuggestions(filters.searchTerm);
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.searchTerm]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -408,6 +451,29 @@ const ExplorePage = () => {
                       {term}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* AI Search Suggestions */}
+              {aiSearchSuggestions.length > 0 && filters.searchTerm.length >= 3 && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-blue-600">🤖 AI Suggestions:</span>
+                    {isGeneratingAISuggestions && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiSearchSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSearch(suggestion)}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-full text-sm border border-blue-300 transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

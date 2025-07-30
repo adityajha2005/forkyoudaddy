@@ -4,6 +4,7 @@ import TagSelector from '../components/TagSelector';
 import { addIP } from '../services/ipService';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
+import { generateContentSuggestions, generateImageFromPrompt, generateMemeFromPrompt } from '../services/aiService';
 
 interface CreateIPForm {
   title: string;
@@ -16,9 +17,21 @@ interface CreateIPForm {
   category: string;
 }
 
+interface AISuggestion {
+  title: string;
+  description: string;
+  content: string;
+  tags: string[];
+  confidence: number;
+}
+
 const CreateIPPage = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
   const [formData, setFormData] = useState<CreateIPForm>({
     title: '',
     description: '',
@@ -54,6 +67,108 @@ const CreateIPPage = () => {
         contentType: 'image'
       }));
     }
+  };
+
+  // AI Integration Functions
+  const generateAISuggestions = async () => {
+    if (!aiPrompt.trim()) {
+      alert('Please enter a prompt for AI suggestions');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const result = await generateContentSuggestions(aiPrompt, formData.contentType);
+      if (result.success && result.suggestions.length > 0) {
+        setAiSuggestions(result.suggestions);
+        setShowAIPanel(true);
+      } else {
+        alert('No AI suggestions generated. Please try a different prompt.');
+      }
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      alert('AI generation failed. Please try again.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const generateAIImage = async () => {
+    if (!aiPrompt.trim()) {
+      alert('Please enter a prompt for image generation');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const result = await generateImageFromPrompt(aiPrompt);
+      if (result.success && result.imageUrl) {
+        // Convert blob URL to file
+        const response = await fetch(result.imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'ai-generated-image.png', { type: 'image/png' });
+        
+        setFormData(prev => ({
+          ...prev,
+          file,
+          contentType: 'image'
+        }));
+        
+        alert('AI-generated image added to your form!');
+      } else {
+        alert('Image generation failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Image generation failed:', error);
+      alert('Image generation failed. Please try again.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const generateAIMeme = async () => {
+    if (!aiPrompt.trim()) {
+      alert('Please enter a prompt for meme generation');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const result = await generateMemeFromPrompt(aiPrompt);
+      if (result.success && result.imageUrl) {
+        // Convert blob URL to file
+        const response = await fetch(result.imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'ai-generated-meme.png', { type: 'image/png' });
+        
+        setFormData(prev => ({
+          ...prev,
+          file,
+          contentType: 'image'
+        }));
+        
+        alert('AI-generated meme added to your form!');
+      } else {
+        alert('Meme generation failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Meme generation failed:', error);
+      alert('Meme generation failed. Please try again.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const applyAISuggestion = (suggestion: AISuggestion) => {
+    setFormData(prev => ({
+      ...prev,
+      title: suggestion.title.replace('AI Suggestion: ', ''),
+      description: suggestion.description,
+      content: suggestion.content,
+      tags: [...prev.tags, ...suggestion.tags.filter(tag => !prev.tags.includes(tag))]
+    }));
+    setShowAIPanel(false);
+    alert('AI suggestion applied to your form!');
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -111,7 +226,6 @@ const CreateIPPage = () => {
         });
 
         alert('IP registered successfully!');
-        // clearIPCache(); // Clear cache to ensure fresh data - This line was removed as per the edit hint
         navigate('/explore'); // Redirect to explore page
       } else {
         throw new Error('Failed to register IP onchain');
@@ -127,7 +241,6 @@ const CreateIPPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar was removed as per the edit hint */}
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -138,6 +251,103 @@ const CreateIPPage = () => {
             <p className="text-lg text-gray-600">
               Register your original content onchain and make it remixable! 🚀
             </p>
+          </div>
+
+          {/* AI Assistant Panel */}
+          <div className="mb-8 bg-meme-white border-2 border-black rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <h3 className="text-2xl font-black text-black">🤖 AI CONTENT ASSISTANT</h3>
+                <span className="bg-pepe-green text-black px-3 py-1 rounded-full text-sm font-bold border-2 border-black">
+                  BETA
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className="bg-dank-yellow hover:bg-yellow-500 text-black font-bold px-4 py-2 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105"
+              >
+                {showAIPanel ? '🔽 HIDE' : '🔼 SHOW'}
+              </button>
+            </div>
+            
+            {showAIPanel && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-black text-black mb-3">
+                    🤔 AI PROMPT:
+                  </label>
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-black rounded-lg focus:border-pepe-green focus:outline-none font-bold text-lg"
+                    placeholder="Describe what you want to create..."
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    type="button"
+                    onClick={generateAISuggestions}
+                    disabled={isGeneratingAI}
+                    className="bg-blue-400 hover:bg-blue-500 disabled:bg-gray-400 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    {isGeneratingAI ? '🔄 GENERATING...' : '💡 GET SUGGESTIONS'}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={generateAIImage}
+                    disabled={isGeneratingAI}
+                    className="bg-pepe-green hover:bg-green-600 disabled:bg-gray-400 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    {isGeneratingAI ? '🔄 GENERATING...' : '🎨 GENERATE IMAGE'}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={generateAIMeme}
+                    disabled={isGeneratingAI}
+                    className="bg-dank-yellow hover:bg-yellow-500 disabled:bg-gray-400 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    {isGeneratingAI ? '🔄 GENERATING...' : '😂 GENERATE MEME'}
+                  </button>
+                </div>
+
+                {/* AI Suggestions */}
+                {aiSuggestions.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="font-black text-black mb-4 text-lg">🤖 AI SUGGESTIONS:</h4>
+                    <div className="space-y-4">
+                      {aiSuggestions.map((suggestion, index) => (
+                        <div key={index} className="bg-white border-2 border-black rounded-lg p-4 shadow-lg">
+                          <h5 className="font-black text-black text-lg mb-2">{suggestion.title}</h5>
+                          <p className="text-sm text-gray-600 mb-3">{suggestion.description}</p>
+                          <p className="text-sm text-gray-700 mb-4 bg-gray-50 p-3 rounded border">{suggestion.content}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap gap-2">
+                              {suggestion.tags.map((tag, tagIndex) => (
+                                <span key={tagIndex} className="bg-pepe-green text-black text-xs px-3 py-1 rounded-full font-bold border border-black">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => applyAISuggestion(suggestion)}
+                              className="bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105"
+                            >
+                              USE THIS
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Form */}
@@ -225,14 +435,28 @@ const CreateIPPage = () => {
                   <label htmlFor="file" className="block text-sm font-bold text-gray-700 mb-2">
                     UPLOAD IMAGE *
                   </label>
+                  
+                  {/* AI Generated File Indicator */}
+                  {formData.file && formData.file.name.includes('ai-generated') && (
+                    <div className="mb-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-600">🤖</span>
+                        <span className="text-sm font-medium text-green-800">
+                          AI-Generated Image: {formData.file.name}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   <input
                     type="file"
                     id="file"
                     accept="image/*"
                     onChange={handleFileChange}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
-                    required
+                    required={!formData.file}
                   />
+                  
                   {formData.file && (
                     <div className="mt-2">
                       <img 
