@@ -11,6 +11,7 @@ import CreateIPPage from './pages/CreateIPPage';
 import RemixPage from './pages/RemixPage';
 import RemixGraphPage from './pages/RemixGraphPage';
 import UserDashboard from './pages/UserDashboard';
+import IPAnalyticsPage from './pages/IPAnalyticsPage';
 
 function App() {
   return (
@@ -43,6 +44,9 @@ function App() {
           
           {/* User Dashboard */}
           <Route path="/dashboard" element={<UserDashboard />} />
+          
+          {/* IP Analytics Page */}
+          <Route path="/analytics" element={<IPAnalyticsPage />} />
           
           {/* IP Details Page (for future use) */}
           <Route path="/ip/:id" element={<RemixPage />} />

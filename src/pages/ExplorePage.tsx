@@ -595,18 +595,24 @@ const ExplorePage = () => {
 
                   {/* Action Buttons */}
                   <div className="p-6 bg-gray-50">
-                    <div className="flex space-x-3">
+                    <div className="flex space-x-2">
                       <button
                         onClick={() => handleRemix(ip)}
-                        className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-colors duration-200"
+                        className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
                       >
                         🍴 REMIX
                       </button>
                       <button
                         onClick={() => handleView(ip)}
-                        className="flex-1 bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-lg border-2 border-black transition-colors duration-200"
+                        className="flex-1 bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
                       >
                         👁️ VIEW
+                      </button>
+                      <button
+                        onClick={() => navigate('/analytics', { state: { ip } })}
+                        className="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
+                      >
+                        📊 ANALYTICS
                       </button>
                     </div>
                   </div>

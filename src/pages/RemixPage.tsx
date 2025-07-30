@@ -443,6 +443,31 @@ const RemixPage = () => {
                   </div>
                 </div>
               )}
+
+              {/* Action Buttons for View Mode */}
+              {mode === 'view' && (
+                <div className="p-6 bg-gray-50 border-t-2 border-gray-200">
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={() => navigate('/remix', { 
+                        state: { 
+                          originalIP,
+                          mode: 'remix'
+                        } 
+                      })}
+                      className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-3 px-6 rounded-lg border-2 border-black transition-colors duration-200"
+                    >
+                      🍴 REMIX THIS IP
+                    </button>
+                    <button
+                      onClick={() => navigate('/analytics', { state: { ip: originalIP } })}
+                      className="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg border-2 border-black transition-colors duration-200"
+                    >
+                      📊 VIEW ANALYTICS
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Remix Form (only show in remix mode) */}
