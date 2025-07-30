@@ -20,6 +20,7 @@ interface IP {
   parentId?: string;
   tags?: string[];
   category?: string;
+  commentCount?: number;
 }
 
 interface SearchFilters {
@@ -682,9 +683,15 @@ const ExplorePage = () => {
                         </a>
                         <span>{formatDate(ip.createdAt)}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <span>🍴</span>
-                        <span className="font-bold">{ip.remixCount}</span>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-1">
+                          <span>🍴</span>
+                          <span className="font-bold">{ip.remixCount}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span>💬</span>
+                          <span className="font-bold">{ip.commentCount || 0}</span>
+                        </div>
                       </div>
                     </div>
 

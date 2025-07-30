@@ -18,6 +18,7 @@ interface IP {
   parentId?: string;
   tags?: string[];
   category?: string;
+  commentCount?: number;
 }
 
 // For localStorage fallback
@@ -43,7 +44,8 @@ const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
   contentURI: supabaseIP.ipfs_hash || '',
   parentId: supabaseIP.parent_id,
   tags: supabaseIP.tags || [],
-  category: supabaseIP.category || ''
+  category: supabaseIP.category || '',
+  commentCount: supabaseIP.comment_count || 0
 });
 
 // Convert local IP to Supabase format
@@ -57,7 +59,8 @@ const convertLocalIPToSupabase = (localIP: IP): Omit<SupabaseIP, 'id' | 'created
   ipfs_hash: localIP.cid,
   parent_id: undefined,
   tags: localIP.tags || [],
-  category: localIP.category || ''
+  category: localIP.category || '',
+  comment_count: localIP.commentCount || 0
 });
 
 // Get all IPs with caching
@@ -177,23 +180,66 @@ export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>, par
 // Update IP remix count
 export const updateIPRemixCount = async (ipId: string): Promise<void> => {
   try {
-    const ips = await getAllIPs();
-    const updatedIPs = ips.map(ip => 
-      ip.id === ipId 
-        ? { ...ip, remixCount: ip.remixCount + 1 }
-        : ip
-    );
+    // Get current IP
+    const currentIP = await getIPById(ipId);
+    if (!currentIP) return;
+
+    // Update remix count
+    const newRemixCount = (currentIP.remixCount || 0) + 1;
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedIPs));
-    
-    // Update cache
-    cachedIPs = updatedIPs;
-    lastLoadTime = Date.now();
-    
-    console.log('Updated remix count for IP:', ipId);
+    // Update in Supabase
+    try {
+      await supabaseIPService.updateIP(ipId, { remix_count: newRemixCount });
+    } catch (error) {
+      console.warn('Failed to update remix count in Supabase:', error);
+    }
+
+    // Update in localStorage
+    const storedIPs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const index = storedIPs.findIndex((ip: IP) => ip.id === ipId);
+    if (index !== -1) {
+      storedIPs[index].remixCount = newRemixCount;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedIPs));
+    }
+
+    // Clear cache to ensure fresh data
+    clearIPCache();
   } catch (error) {
-    console.error('Error updating remix count:', error);
-    throw error;
+    console.error('Error updating IP remix count:', error);
+  }
+};
+
+// Update IP comment count
+export const updateIPCommentCount = async (ipId: string): Promise<void> => {
+  try {
+    // Get current IP
+    const currentIP = await getIPById(ipId);
+    if (!currentIP) return;
+
+    // Get comment count from comment service
+    const { commentService } = await import('./supabase');
+    const comments = await commentService.getComments(ipId);
+    const commentCount = comments.length;
+
+    // Update in Supabase
+    try {
+      await supabaseIPService.updateIP(ipId, { comment_count: commentCount });
+    } catch (error) {
+      console.warn('Failed to update comment count in Supabase:', error);
+    }
+
+    // Update in localStorage
+    const storedIPs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const index = storedIPs.findIndex((ip: IP) => ip.id === ipId);
+    if (index !== -1) {
+      storedIPs[index].commentCount = commentCount;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedIPs));
+    }
+
+    // Clear cache to ensure fresh data
+    clearIPCache();
+  } catch (error) {
+    console.error('Error updating IP comment count:', error);
   }
 };
 

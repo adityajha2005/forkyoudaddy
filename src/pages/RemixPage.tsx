@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import TagSelector from '../components/TagSelector';
 import TagDisplay from '../components/TagDisplay';
+import CommentSection from '../components/CommentSection';
 import { forkIP, registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
 import { addIP } from '../services/ipService';
@@ -513,6 +514,11 @@ const RemixPage = () => {
                   </div>
                 </div>
               )}
+
+              {/* Comments Section */}
+              <div className="mt-8">
+                <CommentSection ipId={originalIP.id} />
+              </div>
             </div>
 
             {/* Remix Form (only show in remix mode) */}
