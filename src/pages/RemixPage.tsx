@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import { getIPById, addIP } from '../services/ipService';
+import { registerIP } from '../services/campOrigin';
+import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
 import TagSelector from '../components/TagSelector';
 import TagDisplay from '../components/TagDisplay';
 import CommentSection from '../components/CommentSection';
-import { forkIP, registerIP } from '../services/campOrigin';
-import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
-import { addIP } from '../services/ipService';
 
 interface IP {
   id: string;
@@ -20,6 +19,7 @@ interface IP {
   remixCount: number;
   cid: string;
   contentURI: string;
+  parentId?: string;
   tags?: string[];
   category?: string;
 }
@@ -27,8 +27,9 @@ interface IP {
 interface RemixForm {
   title: string;
   description: string;
-  content: string;
+  contentType: 'text' | 'image';
   license: string;
+  content: string;
   file?: File;
   tags: string[];
   category: string;
@@ -42,8 +43,9 @@ const RemixPage = () => {
   const [formData, setFormData] = useState<RemixForm>({
     title: '',
     description: '',
-    content: '',
+    contentType: 'text',
     license: 'MIT',
+    content: '',
     tags: [],
     category: ''
   });
@@ -61,11 +63,13 @@ const RemixPage = () => {
       if (location.state.mode === 'remix') {
         // Clean the original title to avoid nested "Remix:" prefixes
         const cleanOriginalTitle = ip.title.replace(/^Remix:\s*/i, '');
+        
         setFormData({
           title: `Remix: ${cleanOriginalTitle}`,
-          description: `A remix of "${cleanOriginalTitle}"`,
-          content: '', // Don't prefill content - let user add their own
+          description: ip.description,
+          contentType: ip.contentType,
           license: ip.license,
+          content: ip.content,
           tags: ip.tags || [],
           category: ip.category || ''
         });
@@ -227,7 +231,6 @@ const RemixPage = () => {
   if (!originalIP) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="py-8">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
@@ -242,8 +245,6 @@ const RemixPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       {/* Forking Animation Overlay */}
       {showForkAnimation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

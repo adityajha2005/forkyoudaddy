@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import TagSelector from '../components/TagSelector';
+import { addIP } from '../services/ipService';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
-import { addIP, clearIPCache } from '../services/ipService';
 
 interface CreateIPForm {
   title: string;
@@ -112,7 +111,7 @@ const CreateIPPage = () => {
         });
 
         alert('IP registered successfully!');
-        clearIPCache(); // Clear cache to ensure fresh data
+        // clearIPCache(); // Clear cache to ensure fresh data - This line was removed as per the edit hint
         navigate('/explore'); // Redirect to explore page
       } else {
         throw new Error('Failed to register IP onchain');
@@ -128,7 +127,7 @@ const CreateIPPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      {/* Navbar was removed as per the edit hint */}
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import { getAllIPs } from '../services/ipService';
-
+import { ipService } from '../services/supabase';
+// import {} from '../services/supabase'
 interface IP {
   id: string;
   title: string;
@@ -201,7 +201,6 @@ const IPAnalyticsPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
@@ -217,7 +216,6 @@ const IPAnalyticsPage = () => {
   if (error || !targetIP || !analytics) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
@@ -239,7 +237,6 @@ const IPAnalyticsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
