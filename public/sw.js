@@ -1,16 +1,14 @@
 // ForkYouDaddy Service Worker
-const CACHE_NAME = 'forkyoudaddy-v1';
-const STATIC_CACHE = 'static-v1';
-const DYNAMIC_CACHE = 'dynamic-v1';
+const CACHE_VERSION = 'v2'; // Increment this to force cache refresh
+const CACHE_NAME = `forkyoudaddy-${CACHE_VERSION}`;
+const STATIC_CACHE = `static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 
 // Files to cache for offline functionality
 const STATIC_FILES = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/apple-touch-icon.png'
+  '/manifest.json'
 ];
 
 // Install event - cache static files
@@ -20,10 +18,18 @@ self.addEventListener('install', (event) => {
     caches.open(STATIC_CACHE)
       .then((cache) => {
         console.log('Caching static files');
-        return cache.addAll(STATIC_FILES);
+        // Cache files individually to handle failures gracefully
+        return Promise.allSettled(
+          STATIC_FILES.map(file => cache.add(file))
+        );
       })
       .then(() => {
         console.log('Service Worker installed');
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('Service Worker install failed:', error);
+        // Continue installation even if caching fails
         return self.skipWaiting();
       })
   );
@@ -37,6 +43,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
+            // Delete all old caches to force refresh
             if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
               console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
@@ -46,7 +53,14 @@ self.addEventListener('activate', (event) => {
       })
       .then(() => {
         console.log('Service Worker activated');
-        return self.clients.claim();
+        // Force refresh all clients
+        return self.clients.claim().then(() => {
+          return self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({ type: 'CACHE_UPDATED' });
+            });
+          });
+        });
       })
   );
 });
@@ -85,31 +99,25 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request)
       .then((response) => {
-        // Return cached version if available
-        if (response) {
-          return response;
-        }
-
-        // Fetch from network
+        // Always try to fetch from network first for fresh content
         return fetch(request)
-          .then((response) => {
-            // Don't cache if not successful
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
+          .then((networkResponse) => {
+            // Cache successful responses
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(DYNAMIC_CACHE)
+                .then((cache) => {
+                  cache.put(request, responseToCache);
+                });
             }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            // Cache the response
-            caches.open(DYNAMIC_CACHE)
-              .then((cache) => {
-                cache.put(request, responseToCache);
-              });
-
-            return response;
+            return networkResponse;
           })
           .catch(() => {
+            // Return cached version if network fails
+            if (response) {
+              return response;
+            }
+            
             // Return offline page for navigation requests
             if (request.destination === 'document') {
               return caches.match('/index.html');
