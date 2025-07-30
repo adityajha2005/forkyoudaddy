@@ -1,5 +1,7 @@
 // IP Service for fetching and managing IPs
-// This will eventually connect to your backend API
+// Integrated with Supabase with localStorage fallback
+
+import { ipService as supabaseIPService, type IP as SupabaseIP } from './supabase';
 
 interface IP {
   id: string;
@@ -15,13 +17,40 @@ interface IP {
   contentURI: string;
 }
 
-// For now, we'll store IPs in localStorage to persist them across sessions
+// For localStorage fallback
 const STORAGE_KEY = 'forkyoudaddy_ips';
 
-// Cache for IPs to avoid repeated localStorage reads
+// Cache for IPs to avoid repeated API reads
 let cachedIPs: IP[] | null = null;
 let lastLoadTime = 0;
 const CACHE_DURATION = 5000; // 5 seconds
+
+// Convert Supabase IP to local IP format
+const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
+  id: supabaseIP.id,
+  title: supabaseIP.title,
+  description: supabaseIP.description,
+  content: supabaseIP.content,
+  contentType: supabaseIP.content_type,
+  license: supabaseIP.license,
+  author: supabaseIP.author_address,
+  createdAt: supabaseIP.created_at,
+  remixCount: supabaseIP.remix_count,
+  cid: supabaseIP.ipfs_hash || '',
+  contentURI: supabaseIP.ipfs_hash || ''
+});
+
+// Convert local IP to Supabase format
+const convertLocalIPToSupabase = (localIP: IP): Omit<SupabaseIP, 'id' | 'created_at' | 'remix_count'> => ({
+  title: localIP.title,
+  description: localIP.description,
+  content: localIP.content,
+  content_type: localIP.contentType,
+  license: localIP.license,
+  author_address: localIP.author,
+  ipfs_hash: localIP.cid,
+  parent_id: undefined
+});
 
 // Get all IPs with caching
 export const getAllIPs = async (): Promise<IP[]> => {
@@ -33,20 +62,35 @@ export const getAllIPs = async (): Promise<IP[]> => {
       return cachedIPs;
     }
 
-    // Try to get from localStorage
-    const storedIPs = localStorage.getItem(STORAGE_KEY);
-    if (storedIPs) {
-      const ips = JSON.parse(storedIPs);
-      cachedIPs = ips;
+    // Try to get from Supabase first
+    try {
+      const supabaseIPs = await supabaseIPService.getAllIPs();
+      const convertedIPs = supabaseIPs.map(convertSupabaseIPToLocal);
+      
+      // Update cache
+      cachedIPs = convertedIPs;
       lastLoadTime = now;
-      console.log(`Loaded ${ips.length} IPs from localStorage`);
-      return ips;
+      
+      console.log(`Loaded ${convertedIPs.length} IPs from Supabase`);
+      return convertedIPs;
+    } catch (supabaseError) {
+      console.warn('Supabase fetch failed, falling back to localStorage:', supabaseError);
+      
+      // Fallback to localStorage
+      const storedIPs = localStorage.getItem(STORAGE_KEY);
+      if (storedIPs) {
+        const ips = JSON.parse(storedIPs);
+        cachedIPs = ips;
+        lastLoadTime = now;
+        console.log(`Loaded ${ips.length} IPs from localStorage (fallback)`);
+        return ips;
+      }
+      
+      // If no stored IPs, return empty array
+      cachedIPs = [];
+      lastLoadTime = now;
+      return [];
     }
-    
-    // If no stored IPs, return empty array
-    cachedIPs = [];
-    lastLoadTime = now;
-    return [];
   } catch (error) {
     console.error('Error loading IPs:', error);
     return [];
@@ -63,29 +107,59 @@ export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>, par
       remixCount: 0
     };
 
-    // Get existing IPs
-    const existingIPs = await getAllIPs();
-    
-    // If this is a fork, update the parent's remix count
-    if (parentId) {
-      const parentIP = existingIPs.find(p => p.id === parentId);
-      if (parentIP) {
-        parentIP.remixCount += 1;
+    // Try to save to Supabase first
+    try {
+      const supabaseIPData = convertLocalIPToSupabase(newIP);
+      if (parentId) {
+        supabaseIPData.parent_id = parentId;
       }
+      
+      const savedSupabaseIP = await supabaseIPService.createIP(supabaseIPData);
+      const convertedIP = convertSupabaseIPToLocal(savedSupabaseIP);
+      
+      // Update parent's remix count if this is a fork
+      if (parentId) {
+        const parentIP = await getIPById(parentId);
+        const newRemixCount = (parentIP?.remixCount || 0) + 1;
+        await supabaseIPService.updateIP(parentId, { 
+          remix_count: newRemixCount
+        });
+      }
+      
+      // Update cache
+      const existingIPs = await getAllIPs();
+      cachedIPs = [convertedIP, ...existingIPs];
+      lastLoadTime = Date.now();
+      
+      console.log('Added new IP to Supabase:', { title: convertedIP.title, id: convertedIP.id, parentId });
+      return convertedIP;
+    } catch (supabaseError) {
+      console.warn('Supabase save failed, falling back to localStorage:', supabaseError);
+      
+      // Fallback to localStorage
+      const existingIPs = await getAllIPs();
+      
+      // If this is a fork, update the parent's remix count
+      if (parentId) {
+        const parentIP = existingIPs.find(p => p.id === parentId);
+        if (parentIP) {
+          parentIP.remixCount += 1;
+        }
+      }
+      
+      // Add new IP to the beginning
+      const updatedIPs = [newIP, ...existingIPs];
+      
+      // Save to localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedIPs));
+      
+      // Update cache
+      cachedIPs = updatedIPs;
+      lastLoadTime = Date.now();
+      
+      console.log('Added new IP to localStorage (fallback):', { title: newIP.title, id: newIP.id, parentId });
+      return newIP;
     }
-    
-    // Add new IP to the beginning
-    const updatedIPs = [newIP, ...existingIPs];
-    
-    // Save to localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedIPs));
-    
-    // Update cache
-    cachedIPs = updatedIPs;
-    lastLoadTime = Date.now();
-    
-    console.log('Added new IP:', { title: newIP.title, id: newIP.id, parentId });
-    return newIP;
   } catch (error) {
     console.error('Error adding IP:', error);
     throw error;
