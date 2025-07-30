@@ -286,18 +286,14 @@ const ExplorePage = () => {
                       {ip.contentType === 'image' ? (
                         <div>
                           <img 
-                            src={`https://ipfs.io/ipfs/${ip.cid}`}
+                            src={ip.content}
                             alt={ip.title}
                             className="w-full h-32 object-cover rounded border border-gray-300"
                             onError={(e) => {
-                              // Fallback to text if image fails to load
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              // Fallback to IPFS if Supabase content fails
+                              e.currentTarget.src = `https://ipfs.io/ipfs/${ip.cid}`;
                             }}
                           />
-                          <div className="hidden text-sm text-gray-700 font-mono mt-2 line-clamp-2">
-                            {ip.content}
-                          </div>
                         </div>
                       ) : (
                         <div className="text-sm text-gray-700 font-mono line-clamp-2">

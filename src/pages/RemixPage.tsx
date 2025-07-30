@@ -174,54 +174,136 @@ const RemixPage = () => {
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             {/* Original IP Card */}
-            <div className="bg-white border-2 border-black rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-black mb-4">Original IP</h2>
+            <div className="bg-white border-2 border-black rounded-lg shadow-lg overflow-hidden">
+              <h2 className="text-2xl font-bold text-black p-6 border-b-2 border-gray-200">Original IP</h2>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Title</label>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                    {originalIP.title}
-                  </div>
-                </div>
+              {mode === 'view' && originalIP.contentType === 'image' ? (
+                // View mode with image layout
+                <div className="flex">
+                  {/* Left side - Details */}
+                  <div className="w-1/2 p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Title</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                        {originalIP.title}
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                    {originalIP.description}
-                  </div>
-                </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                        {originalIP.description}
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Content</label>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                    {originalIP.contentType === 'image' ? (
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <img 
-                          src={`https://ipfs.io/ipfs/${originalIP.cid}`}
-                          alt={originalIP.title}
-                          className="w-full h-48 object-cover rounded border border-gray-300"
-                          onError={(e) => {
-                            // Fallback to text if image fails to load
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                        <div className="hidden font-mono text-sm mt-2 text-gray-600">
-                          {originalIP.content}
+                        <label className="block text-sm font-bold text-gray-700 mb-1">License</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          {originalIP.license}
                         </div>
                       </div>
-                    ) : (
-                      <div className="font-mono text-sm">
-                        {originalIP.content}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Author</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          <a 
+                            href={`https://explorer.campnetwork.xyz/address/${originalIP.author}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline break-all"
+                          >
+                            {originalIP.author}
+                          </a>
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Remix Count</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          🍴 {originalIP.remixCount}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Created</label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                          {new Date(originalIP.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">IPFS Hash</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                        <a 
+                          href={`https://ipfs.io/ipfs/${originalIP.cid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline break-all font-mono text-sm"
+                        >
+                          {originalIP.cid}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right side - Full height image */}
+                  <div className="w-1/2 bg-gray-100">
+                    <img 
+                      src={originalIP.content}
+                      alt={originalIP.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to IPFS if Supabase content fails
+                        e.currentTarget.src = `https://ipfs.io/ipfs/${originalIP.cid}`;
+                      }}
+                    />
                   </div>
                 </div>
+              ) : (
+                // Default layout for remix mode or text content
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Title</label>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                      {originalIP.title}
+                    </div>
+                  </div>
 
-                                  <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                      {originalIP.description}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Content</label>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                      {originalIP.contentType === 'image' ? (
+                        <div>
+                          <img 
+                            src={originalIP.content}
+                            alt={originalIP.title}
+                            className="w-full h-48 object-cover rounded border border-gray-300"
+                            onError={(e) => {
+                              // Fallback to IPFS if Supabase content fails
+                              e.currentTarget.src = `https://ipfs.io/ipfs/${originalIP.cid}`;
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="font-mono text-sm">
+                          {originalIP.content}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">License</label>
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
@@ -243,21 +325,36 @@ const RemixPage = () => {
                     </div>
                   </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Remix Count</label>
-                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                      🍴 {originalIP.remixCount}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Remix Count</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                        🍴 {originalIP.remixCount}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Created</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                        {new Date(originalIP.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Created</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">IPFS Hash</label>
                     <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                      {new Date(originalIP.createdAt).toLocaleDateString()}
+                      <a 
+                        href={`https://ipfs.io/ipfs/${originalIP.cid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline break-all font-mono text-sm"
+                      >
+                        {originalIP.cid}
+                      </a>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Remix Form (only show in remix mode) */}
