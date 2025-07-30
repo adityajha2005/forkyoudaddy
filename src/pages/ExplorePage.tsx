@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { getAllIPs } from '../services/ipService';
@@ -22,53 +22,63 @@ const ExplorePage = () => {
   const [ips, setIps] = useState<IP[]>([]);
   const [filteredIps, setFilteredIps] = useState<IP[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedContentType, setSelectedContentType] = useState<string>('all');
   const [selectedLicense, setSelectedLicense] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Load real IPs from localStorage
-  useEffect(() => {
-    const loadIPs = async () => {
-      try {
-        const realIPs = await getAllIPs();
-        console.log('Loaded IPs:', realIPs);
-        
-        setIps(realIPs);
-        setFilteredIps(realIPs);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading IPs:', error);
-        setLoading(false);
-      }
-    };
-
-    loadIPs();
+  // Load IPs with better error handling and caching
+  const loadIPs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const realIPs = await getAllIPs();
+      setIps(realIPs);
+      setFilteredIps(realIPs);
+    } catch (error) {
+      console.error('Error loading IPs:', error);
+      setError('Failed to load IPs. Please try refreshing the page.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Filter IPs based on selected filters
+  // Load IPs on component mount
   useEffect(() => {
-    let filtered = ips;
+    loadIPs();
+  }, [loadIPs]);
 
-    // Filter by content type
-    if (selectedContentType !== 'all') {
-      filtered = filtered.filter(ip => ip.contentType === selectedContentType);
-    }
+  // Filter IPs based on selected filters with debouncing
+  useEffect(() => {
+    const filterIPs = () => {
+      let filtered = ips;
 
-    // Filter by license
-    if (selectedLicense !== 'all') {
-      filtered = filtered.filter(ip => ip.license === selectedLicense);
-    }
+      // Filter by content type
+      if (selectedContentType !== 'all') {
+        filtered = filtered.filter(ip => ip.contentType === selectedContentType);
+      }
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(ip => 
-        ip.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ip.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ip.author.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+      // Filter by license
+      if (selectedLicense !== 'all') {
+        filtered = filtered.filter(ip => ip.license === selectedLicense);
+      }
 
-    setFilteredIps(filtered);
+      // Filter by search term
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
+        filtered = filtered.filter(ip => 
+          ip.title.toLowerCase().includes(searchLower) ||
+          ip.description.toLowerCase().includes(searchLower) ||
+          ip.author.toLowerCase().includes(searchLower)
+        );
+      }
+
+      setFilteredIps(filtered);
+    };
+
+    // Debounce the filtering to avoid excessive re-renders
+    const timeoutId = setTimeout(filterIPs, 150);
+    return () => clearTimeout(timeoutId);
   }, [ips, selectedContentType, selectedLicense, searchTerm]);
 
   const handleRemix = (ip: IP) => {
@@ -127,6 +137,10 @@ const ExplorePage = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const handleRefresh = () => {
+    loadIPs();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -150,12 +164,29 @@ const ExplorePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-black text-black mb-4">
-              EXPLORE IPs
-            </h1>
-            <p className="text-lg text-gray-600">
-              Discover and remix the hottest content on the platform! 🍴
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-black text-black mb-4">
+                  EXPLORE IPs
+                </h1>
+                <p className="text-lg text-gray-600">
+                  Discover and remix the hottest content on the platform! 🍴
+                </p>
+              </div>
+              {error && (
+                <button
+                  onClick={handleRefresh}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg border-2 border-black transition-colors duration-200"
+                >
+                  🔄 Retry
+                </button>
+              )}
+            </div>
+            {error && (
+              <div className="mt-4 p-4 bg-red-100 border-2 border-red-300 rounded-lg">
+                <p className="text-red-800 font-medium">{error}</p>
+              </div>
+            )}
           </div>
 
           {/* Filters */}

@@ -18,18 +18,34 @@ interface IP {
 // For now, we'll store IPs in localStorage to persist them across sessions
 const STORAGE_KEY = 'forkyoudaddy_ips';
 
-// Get all IPs
+// Cache for IPs to avoid repeated localStorage reads
+let cachedIPs: IP[] | null = null;
+let lastLoadTime = 0;
+const CACHE_DURATION = 5000; // 5 seconds
+
+// Get all IPs with caching
 export const getAllIPs = async (): Promise<IP[]> => {
   try {
-    // Try to get from localStorage first
+    const now = Date.now();
+    
+    // Return cached data if it's still fresh
+    if (cachedIPs && (now - lastLoadTime) < CACHE_DURATION) {
+      return cachedIPs;
+    }
+
+    // Try to get from localStorage
     const storedIPs = localStorage.getItem(STORAGE_KEY);
     if (storedIPs) {
       const ips = JSON.parse(storedIPs);
-      console.log('Loaded IPs from localStorage:', ips.length);
+      cachedIPs = ips;
+      lastLoadTime = now;
+      console.log(`Loaded ${ips.length} IPs from localStorage`);
       return ips;
     }
     
     // If no stored IPs, return empty array
+    cachedIPs = [];
+    lastLoadTime = now;
     return [];
   } catch (error) {
     console.error('Error loading IPs:', error);
@@ -56,7 +72,11 @@ export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>): Pr
     // Save to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedIPs));
     
-    console.log('Added new IP:', newIP);
+    // Update cache
+    cachedIPs = updatedIPs;
+    lastLoadTime = Date.now();
+    
+    console.log('Added new IP:', { title: newIP.title, id: newIP.id });
     return newIP;
   } catch (error) {
     console.error('Error adding IP:', error);
@@ -75,6 +95,11 @@ export const updateIPRemixCount = async (ipId: string): Promise<void> => {
     );
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedIPs));
+    
+    // Update cache
+    cachedIPs = updatedIPs;
+    lastLoadTime = Date.now();
+    
     console.log('Updated remix count for IP:', ipId);
   } catch (error) {
     console.error('Error updating remix count:', error);
@@ -91,4 +116,10 @@ export const getIPById = async (id: string): Promise<IP | null> => {
     console.error('Error getting IP by ID:', error);
     return null;
   }
+};
+
+// Clear cache (useful for testing or when you need fresh data)
+export const clearIPCache = (): void => {
+  cachedIPs = null;
+  lastLoadTime = 0;
 }; 

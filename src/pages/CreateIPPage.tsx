@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
-import { addIP } from '../services/ipService';
+import { addIP, clearIPCache } from '../services/ipService';
 
 interface CreateIPForm {
   title: string;
@@ -105,6 +105,7 @@ const CreateIPPage = () => {
         });
 
         alert('IP registered successfully!');
+        clearIPCache(); // Clear cache to ensure fresh data
         navigate('/explore'); // Redirect to explore page
       } else {
         throw new Error('Failed to register IP onchain');
