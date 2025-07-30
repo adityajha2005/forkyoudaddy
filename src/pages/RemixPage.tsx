@@ -84,8 +84,17 @@ const RemixPage = () => {
       return;
     }
 
-    if (!formData.title || !formData.description || (!formData.content && !formData.file)) {
-      alert('Please fill in all required fields');
+    if (!formData.title || !formData.description) {
+      alert('Please fill in title and description');
+      return;
+    }
+    
+    // For image content, either file or content is acceptable
+    if (originalIP.contentType === 'image' && !formData.file && !formData.content) {
+      // For image IPs, if no new file is uploaded, we'll use the original image
+      console.log('Using original image for remix');
+    } else if (originalIP.contentType === 'text' && !formData.content) {
+      alert('Please provide content for text IP');
       return;
     }
 
@@ -97,6 +106,11 @@ const RemixPage = () => {
       // Upload content to IPFS
       if (formData.file) {
         ipfsResult = await uploadFileToIPFS(formData.file);
+      } else if (originalIP.contentType === 'image') {
+        // For image content without a new file, upload the original image content
+        const imageBlob = await fetch(originalIP.content).then(r => r.blob());
+        const imageFile = new File([imageBlob], 'image.png', { type: 'image/png' });
+        ipfsResult = await uploadFileToIPFS(imageFile);
       } else {
         ipfsResult = await uploadToIPFS(formData.content);
       }
@@ -115,10 +129,17 @@ const RemixPage = () => {
 
       if (result.success) {
         // Also add to local storage for graph visualization
+        // For image content, use the original image content if no new file is provided
+        let contentToStore = formData.content;
+        if (originalIP.contentType === 'image' && !formData.file) {
+          // If forking an image but no new file is provided, use the original image content
+          contentToStore = originalIP.content;
+        }
+        
         await addIP({
           title: formData.title,
           description: formData.description,
-          content: formData.content,
+          content: contentToStore,
           contentType: originalIP.contentType,
           license: formData.license,
           author: 'Current User', // This would come from wallet
@@ -400,15 +421,48 @@ const RemixPage = () => {
                     <label htmlFor="content" className="block text-sm font-bold text-gray-700 mb-2">
                       CONTENT *
                     </label>
-                    <textarea
-                      id="content"
-                      value={formData.content}
-                      onChange={(e) => handleInputChange('content', e.target.value)}
-                      rows={4}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
-                      placeholder="Your remixed content..."
-                      required
-                    />
+                    {originalIP.contentType === 'image' ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="imageFile" className="block text-sm font-medium text-gray-700 mb-2">
+                            Upload New Image (Optional)
+                          </label>
+                          <input
+                            type="file"
+                            id="imageFile"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Leave empty to keep the original image
+                          </p>
+                        </div>
+                        <div>
+                          <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
+                            Description/Notes
+                          </label>
+                          <textarea
+                            id="content"
+                            value={formData.content}
+                            onChange={(e) => handleInputChange('content', e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
+                            placeholder="Add notes about your remix..."
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <textarea
+                        id="content"
+                        value={formData.content}
+                        onChange={(e) => handleInputChange('content', e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
+                        placeholder="Your remixed content..."
+                        required
+                      />
+                    )}
                   </div>
 
                   {/* License */}
