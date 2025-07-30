@@ -15,6 +15,19 @@ interface IP {
   remixCount: number;
   cid: string;
   contentURI: string;
+  parentId?: string;
+}
+
+interface SearchFilters {
+  searchTerm: string;
+  contentType: string;
+  license: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  dateRange: string;
+  minRemixCount: number;
+  authorFilter: string;
+  isRemix: boolean | null;
 }
 
 const ExplorePage = () => {
@@ -23,9 +36,19 @@ const ExplorePage = () => {
   const [filteredIps, setFilteredIps] = useState<IP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedContentType, setSelectedContentType] = useState<string>('all');
-  const [selectedLicense, setSelectedLicense] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<SearchFilters>({
+    searchTerm: '',
+    contentType: 'all',
+    license: 'all',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    dateRange: 'all',
+    minRemixCount: 0,
+    authorFilter: '',
+    isRemix: null
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
   // Load IPs with better error handling and caching
   const loadIPs = useCallback(async () => {
@@ -48,38 +71,115 @@ const ExplorePage = () => {
     loadIPs();
   }, [loadIPs]);
 
-  // Filter IPs based on selected filters with debouncing
+  // Advanced filtering and sorting
   useEffect(() => {
-    const filterIPs = () => {
-      let filtered = ips;
-
-      // Filter by content type
-      if (selectedContentType !== 'all') {
-        filtered = filtered.filter(ip => ip.contentType === selectedContentType);
-      }
-
-      // Filter by license
-      if (selectedLicense !== 'all') {
-        filtered = filtered.filter(ip => ip.license === selectedLicense);
-      }
+    const filterAndSortIPs = () => {
+      let filtered = [...ips];
 
       // Filter by search term
-      if (searchTerm.trim()) {
-        const searchLower = searchTerm.toLowerCase();
+      if (filters.searchTerm.trim()) {
+        const searchLower = filters.searchTerm.toLowerCase();
         filtered = filtered.filter(ip => 
           ip.title.toLowerCase().includes(searchLower) ||
           ip.description.toLowerCase().includes(searchLower) ||
-          ip.author.toLowerCase().includes(searchLower)
+          ip.author.toLowerCase().includes(searchLower) ||
+          ip.content.toLowerCase().includes(searchLower)
         );
       }
+
+      // Filter by content type
+      if (filters.contentType !== 'all') {
+        filtered = filtered.filter(ip => ip.contentType === filters.contentType);
+      }
+
+      // Filter by license
+      if (filters.license !== 'all') {
+        filtered = filtered.filter(ip => ip.license === filters.license);
+      }
+
+      // Filter by author
+      if (filters.authorFilter.trim()) {
+        const authorLower = filters.authorFilter.toLowerCase();
+        filtered = filtered.filter(ip => 
+          ip.author.toLowerCase().includes(authorLower)
+        );
+      }
+
+      // Filter by remix status
+      if (filters.isRemix !== null) {
+        if (filters.isRemix) {
+          filtered = filtered.filter(ip => ip.parentId);
+        } else {
+          filtered = filtered.filter(ip => !ip.parentId);
+        }
+      }
+
+      // Filter by minimum remix count
+      if (filters.minRemixCount > 0) {
+        filtered = filtered.filter(ip => ip.remixCount >= filters.minRemixCount);
+      }
+
+      // Filter by date range
+      if (filters.dateRange !== 'all') {
+        const now = new Date();
+        const cutoffDate = new Date();
+        
+        switch (filters.dateRange) {
+          case 'today':
+            cutoffDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            cutoffDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            cutoffDate.setMonth(now.getMonth() - 1);
+            break;
+          case 'year':
+            cutoffDate.setFullYear(now.getFullYear() - 1);
+            break;
+        }
+        
+        filtered = filtered.filter(ip => new Date(ip.createdAt) >= cutoffDate);
+      }
+
+      // Sort results
+      filtered.sort((a, b) => {
+        let aValue: any, bValue: any;
+        
+        switch (filters.sortBy) {
+          case 'title':
+            aValue = a.title.toLowerCase();
+            bValue = b.title.toLowerCase();
+            break;
+          case 'author':
+            aValue = a.author.toLowerCase();
+            bValue = b.author.toLowerCase();
+            break;
+          case 'remixCount':
+            aValue = a.remixCount;
+            bValue = b.remixCount;
+            break;
+          case 'createdAt':
+          default:
+            aValue = new Date(a.createdAt);
+            bValue = new Date(b.createdAt);
+            break;
+        }
+        
+        if (filters.sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
 
       setFilteredIps(filtered);
     };
 
     // Debounce the filtering to avoid excessive re-renders
-    const timeoutId = setTimeout(filterIPs, 150);
+    const timeoutId = setTimeout(filterAndSortIPs, 150);
     return () => clearTimeout(timeoutId);
-  }, [ips, selectedContentType, selectedLicense, searchTerm]);
+  }, [ips, filters]);
 
   const handleRemix = (ip: IP) => {
     // Navigate to remix page with IP data
@@ -141,6 +241,43 @@ const ExplorePage = () => {
     loadIPs();
   };
 
+  const updateFilter = (key: keyof SearchFilters, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      searchTerm: '',
+      contentType: 'all',
+      license: 'all',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      dateRange: 'all',
+      minRemixCount: 0,
+      authorFilter: '',
+      isRemix: null
+    });
+  };
+
+  const handleSearch = (term: string) => {
+    updateFilter('searchTerm', term);
+    if (term.trim() && !searchHistory.includes(term)) {
+      setSearchHistory(prev => [term, ...prev.slice(0, 4)]);
+    }
+  };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (filters.searchTerm) count++;
+    if (filters.contentType !== 'all') count++;
+    if (filters.license !== 'all') count++;
+    if (filters.authorFilter) count++;
+    if (filters.isRemix !== null) count++;
+    if (filters.minRemixCount > 0) count++;
+    if (filters.dateRange !== 'all') count++;
+    return count;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -189,48 +326,90 @@ const ExplorePage = () => {
             )}
           </div>
 
-          {/* Filters */}
+          {/* Advanced Search & Filters */}
           <div className="bg-white border-2 border-black rounded-lg shadow-lg p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Search */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  SEARCH
-                </label>
+            {/* Search Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <h3 className="text-xl font-bold text-black">🔍 ADVANCED SEARCH</h3>
+                {getActiveFiltersCount() > 0 && (
+                  <span className="bg-pepe-green text-black px-3 py-1 rounded-full text-sm font-bold">
+                    {getActiveFiltersCount()} active filters
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className="bg-gray-100 hover:bg-gray-200 text-black font-bold px-4 py-2 rounded-lg border-2 border-black transition-colors"
+                >
+                  {showAdvancedFilters ? '🔽' : '🔼'} ADVANCED
+                </button>
+                {getActiveFiltersCount() > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2 rounded-lg border-2 border-black transition-colors"
+                  >
+                    🗑️ CLEAR
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Main Search Bar */}
+            <div className="mb-6">
+              <div className="relative">
                 <input
                   type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search IPs..."
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none"
+                  value={filters.searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search IPs by title, description, content, or author..."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-lg"
                 />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  🔍
+                </div>
               </div>
+              
+              {/* Search History */}
+              {searchHistory.length > 0 && filters.searchTerm === '' && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {searchHistory.map((term, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSearch(term)}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm border transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              {/* Content Type Filter */}
+            {/* Quick Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+              {/* Content Type */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  CONTENT TYPE
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">TYPE</label>
                 <select
-                  value={selectedContentType}
-                  onChange={(e) => setSelectedContentType(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none"
+                  value={filters.contentType}
+                  onChange={(e) => updateFilter('contentType', e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
                 >
                   <option value="all">All Types</option>
-                  <option value="text">Text</option>
-                  <option value="image">Image</option>
+                  <option value="text">📝 Text</option>
+                  <option value="image">🖼️ Image</option>
                 </select>
               </div>
 
-              {/* License Filter */}
+              {/* License */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  LICENSE
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">LICENSE</label>
                 <select
-                  value={selectedLicense}
-                  onChange={(e) => setSelectedLicense(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none"
+                  value={filters.license}
+                  onChange={(e) => updateFilter('license', e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
                 >
                   <option value="all">All Licenses</option>
                   <option value="MIT">MIT</option>
@@ -239,16 +418,108 @@ const ExplorePage = () => {
                 </select>
               </div>
 
-              {/* Results Count */}
+              {/* Sort By */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  RESULTS
-                </label>
-                <div className="px-4 py-2 bg-gray-100 rounded-lg text-center font-bold">
-                  {filteredIps.length} IPs
-                </div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">SORT BY</label>
+                <select
+                  value={filters.sortBy}
+                  onChange={(e) => updateFilter('sortBy', e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
+                >
+                  <option value="createdAt">Date</option>
+                  <option value="title">Title</option>
+                  <option value="author">Author</option>
+                  <option value="remixCount">Popularity</option>
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">ORDER</label>
+                <select
+                  value={filters.sortOrder}
+                  onChange={(e) => updateFilter('sortOrder', e.target.value as 'asc' | 'desc')}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
+                >
+                  <option value="desc">Newest First</option>
+                  <option value="asc">Oldest First</option>
+                </select>
+              </div>
+
+              {/* Date Range */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">DATE</label>
+                <select
+                  value={filters.dateRange}
+                  onChange={(e) => updateFilter('dateRange', e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                </select>
+              </div>
+
+              {/* Remix Status */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">STATUS</label>
+                <select
+                  value={filters.isRemix === null ? 'all' : filters.isRemix ? 'remix' : 'original'}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateFilter('isRemix', value === 'all' ? null : value === 'remix');
+                  }}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none text-sm"
+                >
+                  <option value="all">All IPs</option>
+                  <option value="original">Original Only</option>
+                  <option value="remix">Remixes Only</option>
+                </select>
               </div>
             </div>
+
+            {/* Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="border-t-2 border-gray-200 pt-6">
+                <h4 className="text-lg font-bold text-black mb-4">🔧 ADVANCED FILTERS</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Author Filter */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">AUTHOR</label>
+                    <input
+                      type="text"
+                      value={filters.authorFilter}
+                      onChange={(e) => updateFilter('authorFilter', e.target.value)}
+                      placeholder="Filter by author address..."
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Minimum Remix Count */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">MIN REMIXES</label>
+                    <input
+                      type="number"
+                      value={filters.minRemixCount}
+                      onChange={(e) => updateFilter('minRemixCount', parseInt(e.target.value) || 0)}
+                      min="0"
+                      placeholder="0"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Results Count */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">RESULTS</label>
+                    <div className="px-4 py-2 bg-gray-100 rounded-lg text-center font-bold text-lg">
+                      {filteredIps.length} IPs
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* IP Grid */}
