@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { forkIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
+import { addIP } from '../services/ipService';
 
 interface IP {
   id: string;
@@ -113,6 +114,18 @@ const RemixPage = () => {
       });
 
       if (result.success) {
+        // Also add to local storage for graph visualization
+        await addIP({
+          title: formData.title,
+          description: formData.description,
+          content: formData.content,
+          contentType: originalIP.contentType,
+          license: formData.license,
+          author: 'Current User', // This would come from wallet
+          cid: ipfsResult.cid,
+          contentURI: ipfsResult.url
+        }, originalIP.id);
+
         alert('IP forked successfully!');
         navigate('/explore'); // Redirect to explore page
       } else {

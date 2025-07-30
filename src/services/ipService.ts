@@ -54,17 +54,25 @@ export const getAllIPs = async (): Promise<IP[]> => {
 };
 
 // Add a new IP
-export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>): Promise<IP> => {
+export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>, parentId?: string): Promise<IP> => {
   try {
     const newIP: IP = {
       ...ip,
-      id: `ip-${Date.now()}`,
+      id: parentId ? `fork-${parentId}-${Date.now()}` : `ip-${Date.now()}`,
       createdAt: new Date().toISOString(),
       remixCount: 0
     };
 
     // Get existing IPs
     const existingIPs = await getAllIPs();
+    
+    // If this is a fork, update the parent's remix count
+    if (parentId) {
+      const parentIP = existingIPs.find(p => p.id === parentId);
+      if (parentIP) {
+        parentIP.remixCount += 1;
+      }
+    }
     
     // Add new IP to the beginning
     const updatedIPs = [newIP, ...existingIPs];
@@ -76,7 +84,7 @@ export const addIP = async (ip: Omit<IP, 'id' | 'createdAt' | 'remixCount'>): Pr
     cachedIPs = updatedIPs;
     lastLoadTime = Date.now();
     
-    console.log('Added new IP:', { title: newIP.title, id: newIP.id });
+    console.log('Added new IP:', { title: newIP.title, id: newIP.id, parentId });
     return newIP;
   } catch (error) {
     console.error('Error adding IP:', error);

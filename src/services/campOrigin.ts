@@ -684,4 +684,4 @@ export const forkIP = async (parentId: string, params: {
   }
 };
 
-export { BASECAMP_CONFIG }; 
+export { BASECAMP_CONFIG };
