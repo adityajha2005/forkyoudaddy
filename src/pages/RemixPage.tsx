@@ -39,6 +39,7 @@ const RemixPage = () => {
     license: 'MIT'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForkAnimation, setShowForkAnimation] = useState(false);
 
   // Get IP data from navigation state
   useEffect(() => {
@@ -49,10 +50,12 @@ const RemixPage = () => {
       
       // Prefill form for remix mode
       if (location.state.mode === 'remix') {
+        // Clean the original title to avoid nested "Remix:" prefixes
+        const cleanOriginalTitle = ip.title.replace(/^Remix:\s*/i, '');
         setFormData({
-          title: `Remix: ${ip.title}`,
-          description: `A remix of "${ip.title}"`,
-          content: ip.content,
+          title: `Remix: ${cleanOriginalTitle}`,
+          description: `A remix of "${cleanOriginalTitle}"`,
+          content: '', // Don't prefill content - let user add their own
           license: ip.license
         });
       }
@@ -106,12 +109,13 @@ const RemixPage = () => {
       // Upload content to IPFS
       if (formData.file) {
         ipfsResult = await uploadFileToIPFS(formData.file);
-      } else if (originalIP.contentType === 'image') {
-        // For image content without a new file, upload the original image content
+      } else if (originalIP.contentType === 'image' && !formData.content.trim()) {
+        // For image content without a new file and no text content, upload the original image content
         const imageBlob = await fetch(originalIP.content).then(r => r.blob());
         const imageFile = new File([imageBlob], 'image.png', { type: 'image/png' });
         ipfsResult = await uploadFileToIPFS(imageFile);
       } else {
+        // For text content (including when remixing image IP with text)
         ipfsResult = await uploadToIPFS(formData.content);
       }
 
@@ -129,26 +133,69 @@ const RemixPage = () => {
 
       if (result.success) {
         // Also add to local storage for graph visualization
-        // For image content, use the original image content if no new file is provided
+        // Determine the content type based on what the user is actually providing
+        let contentType = originalIP.contentType;
         let contentToStore = formData.content;
-        if (originalIP.contentType === 'image' && !formData.file) {
-          // If forking an image but no new file is provided, use the original image content
-          contentToStore = originalIP.content;
+        
+        if (originalIP.contentType === 'image') {
+          if (formData.file) {
+            // User uploaded a new image file
+            contentType = 'image';
+            // For image files, we'll store the file content as base64
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const base64Content = reader.result as string;
+              await addIP({
+                title: formData.title,
+                description: formData.description,
+                content: base64Content,
+                contentType: 'image',
+                license: formData.license,
+                author: 'Current User',
+                cid: ipfsResult.cid,
+                contentURI: ipfsResult.url
+              }, originalIP.id);
+            };
+            reader.readAsDataURL(formData.file);
+            return; // Exit early since we're handling this asynchronously
+          } else if (formData.content.trim()) {
+            // User provided text content, so this becomes a text IP
+            contentType = 'text';
+            contentToStore = formData.content;
+          } else {
+            // No new file and no text content, use original image
+            contentToStore = originalIP.content;
+          }
         }
         
         await addIP({
           title: formData.title,
           description: formData.description,
           content: contentToStore,
-          contentType: originalIP.contentType,
+          contentType: contentType,
           license: formData.license,
           author: 'Current User', // This would come from wallet
           cid: ipfsResult.cid,
           contentURI: ipfsResult.url
         }, originalIP.id);
 
-        alert('IP forked successfully!');
-        navigate('/explore'); // Redirect to explore page
+        // Show forking animation
+        setShowForkAnimation(true);
+        
+        // Trigger forking animation if we're on the remix graph page
+        if ((window as any).triggerForkAnimation) {
+          setTimeout(() => {
+            // Use the newly created IP's ID for the animation
+            const newIPId = `fork-${originalIP.id}-${Date.now()}`;
+            (window as any).triggerForkAnimation(originalIP.id, newIPId);
+          }, 100);
+        }
+        
+        // Show success message and redirect after animation
+        setTimeout(() => {
+          setShowForkAnimation(false);
+          navigate('/explore'); // Redirect to explore page
+        }, 2000); // Reduced to match shorter animation
       } else {
         throw new Error('Failed to fork IP onchain');
       }
@@ -180,6 +227,22 @@ const RemixPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      
+      {/* Forking Animation Overlay */}
+      {showForkAnimation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pepe-green mx-auto mb-4"></div>
+            <h3 className="text-xl font-bold mb-2">Forking IP...</h3>
+            <p className="text-gray-600">Creating your remix on the blockchain</p>
+            <div className="mt-4 flex justify-center space-x-2">
+              <div className="w-2 h-2 bg-pepe-green rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-pepe-green rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+              <div className="w-2 h-2 bg-pepe-green rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -198,7 +261,9 @@ const RemixPage = () => {
           <div className="max-w-6xl mx-auto">
             {/* Original IP Card */}
             <div className="bg-white border-2 border-black rounded-lg shadow-lg overflow-hidden">
-              <h2 className="text-2xl font-bold text-black p-6 border-b-2 border-gray-200">Original IP</h2>
+              <h2 className="text-2xl font-bold text-black p-6 border-b-2 border-gray-200">
+                {mode === 'remix' ? '📋 Original IP (What you\'re remixing)' : 'Original IP'}
+              </h2>
               
               {mode === 'view' && originalIP.contentType === 'image' ? (
                 // View mode with image layout
@@ -302,14 +367,16 @@ const RemixPage = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Content</label>
-                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                      {originalIP.contentType === 'image' ? '🖼️ Original Image' : '📝 Original Text'}
+                    </label>
+                    <div className="p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
                       {originalIP.contentType === 'image' ? (
                         <div>
                           <img 
                             src={originalIP.content}
                             alt={originalIP.title}
-                            className="w-full h-48 object-cover rounded border border-gray-300"
+                            className="w-full h-64 object-cover rounded border border-gray-300"
                             onError={(e) => {
                               // Fallback to IPFS if Supabase content fails
                               e.currentTarget.src = `https://ipfs.io/ipfs/${originalIP.cid}`;
@@ -317,7 +384,7 @@ const RemixPage = () => {
                           />
                         </div>
                       ) : (
-                        <div className="font-mono text-sm">
+                        <div className="font-mono text-sm bg-white p-3 rounded border">
                           {originalIP.content}
                         </div>
                       )}
@@ -381,7 +448,8 @@ const RemixPage = () => {
             {/* Remix Form (only show in remix mode) */}
             {mode === 'remix' && (
               <div className="bg-white border-2 border-black rounded-lg shadow-lg p-6 mt-8">
-                <h2 className="text-2xl font-bold text-black mb-4">Your Remix</h2>
+                <h2 className="text-2xl font-bold text-black mb-4">🍴 Your New Remix</h2>
+                <p className="text-gray-600 mb-6">Create your version based on the original IP above</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Title */}
@@ -419,7 +487,7 @@ const RemixPage = () => {
                   {/* Content */}
                   <div>
                     <label htmlFor="content" className="block text-sm font-bold text-gray-700 mb-2">
-                      CONTENT *
+                      {originalIP.contentType === 'image' ? '🖼️ NEW IMAGE OR 📝 TEXT CONTENT' : '📝 NEW TEXT CONTENT'} *
                     </label>
                     {originalIP.contentType === 'image' ? (
                       <div className="space-y-4">

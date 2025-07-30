@@ -15,6 +15,7 @@ interface IP {
   remixCount: number;
   cid: string;
   contentURI: string;
+  parentId?: string;
 }
 
 // For localStorage fallback
@@ -37,7 +38,8 @@ const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
   createdAt: supabaseIP.created_at,
   remixCount: supabaseIP.remix_count,
   cid: supabaseIP.ipfs_hash || '',
-  contentURI: supabaseIP.ipfs_hash || ''
+  contentURI: supabaseIP.ipfs_hash || '',
+  parentId: supabaseIP.parent_id
 });
 
 // Convert local IP to Supabase format

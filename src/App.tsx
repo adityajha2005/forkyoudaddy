@@ -10,6 +10,7 @@ import ExplorePage from './pages/ExplorePage';
 import CreateIPPage from './pages/CreateIPPage';
 import RemixPage from './pages/RemixPage';
 import RemixGraphPage from './pages/RemixGraphPage';
+import UserDashboard from './pages/UserDashboard';
 
 function App() {
   return (
@@ -39,6 +40,9 @@ function App() {
           
           {/* Remix Page */}
           <Route path="/remix" element={<RemixPage />} />
+          
+          {/* User Dashboard */}
+          <Route path="/dashboard" element={<UserDashboard />} />
           
           {/* IP Details Page (for future use) */}
           <Route path="/ip/:id" element={<RemixPage />} />

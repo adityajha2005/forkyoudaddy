@@ -173,6 +173,7 @@ const Navbar = () => {
     { href: '/explore', label: 'EXPLORE', icon: '📚' },
     { href: '/create', label: 'CREATE IP', icon: '⚒️' },
     { href: '/graph', label: 'REMIX GRAPH', icon: '🧬' },
+    // { href: '/dashboard', label: 'DASHBOARD', icon: '👤' },
     { href: 'https://docs.camp.network', label: 'DOCS', icon: '📄', external: true }
   ];
 
@@ -231,6 +232,14 @@ const Navbar = () => {
                 {showWalletDropdown && (
                   <div className="wallet-dropdown absolute top-full right-0 mt-2 w-48 bg-white border-2 border-black rounded-lg shadow-lg z-50">
                     <div className="p-2 space-y-1">
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setShowWalletDropdown(false)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center space-x-2"
+                      >
+                        <span>👤</span>
+                        <span>Dashboard</span>
+                      </Link>
                       <button
                         onClick={copyAddress}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center space-x-2"

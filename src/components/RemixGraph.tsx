@@ -25,6 +25,8 @@ const RemixGraph: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<IPNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const simulationRef = useRef<any>(null);
 
   // Load IP data and build graph
   useEffect(() => {
@@ -42,7 +44,7 @@ const RemixGraph: React.FC = () => {
           type: ip.contentType === 'text' ? 'TEXT' : 'IMAGE',
           remixCount: ip.remixCount,
           createdAt: ip.createdAt,
-          parentId: ip.id.includes('fork-') ? ip.id.split('-')[1] : undefined
+          parentId: ip.parentId
         }));
 
         // Create links based on parent-child relationships
@@ -70,6 +72,60 @@ const RemixGraph: React.FC = () => {
 
     loadGraphData();
   }, []);
+
+  // Forking animation function
+  const animateForking = (parentNode: IPNode, childNode: IPNode) => {
+    if (!svgRef.current || isAnimating) return;
+    
+    setIsAnimating(true);
+    const svg = d3.select(svgRef.current);
+    
+    // Get parent and child node positions from simulation
+    const parentData = simulationRef.current?.nodes().find((n: any) => n.id === parentNode.id);
+    const childData = simulationRef.current?.nodes().find((n: any) => n.id === childNode.id);
+    
+    if (!parentData || !childData) {
+      setIsAnimating(false);
+      return;
+    }
+    
+    // Add a "sparkle" effect at the child node
+    const sparkle = svg.append('circle')
+      .attr('cx', childData.x)
+      .attr('cy', childData.y)
+      .attr('r', 0)
+      .attr('fill', 'none')
+      .attr('stroke', '#10b981')
+      .attr('stroke-width', 4)
+      .style('opacity', 1);
+    
+    sparkle.transition()
+      .duration(1200)
+      .ease(d3.easeCubic)
+      .attr('r', 60)
+      .style('opacity', 0)
+      .remove();
+    
+    // End animation after sparkle effect
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 1200);
+  };
+
+  // Function to trigger forking animation (can be called from parent)
+  const triggerForkAnimation = (parentId: string, childId: string) => {
+    const parentNode = nodes.find(n => n.id === parentId);
+    const childNode = nodes.find(n => n.id === childId);
+    
+    if (parentNode && childNode) {
+      animateForking(parentNode, childNode);
+    }
+  };
+
+  // Expose the trigger function globally for external calls
+  React.useEffect(() => {
+    (window as any).triggerForkAnimation = triggerForkAnimation;
+  }, [nodes]);
 
   // Render D3 force-directed graph
   useEffect(() => {
@@ -103,6 +159,9 @@ const RemixGraph: React.FC = () => {
       .force('collision', d3.forceCollide().radius(100))
       .force('x', d3.forceX(width / 2).strength(0.1))
       .force('y', d3.forceY(height / 2).strength(0.1));
+    
+    // Store simulation reference for animations
+    simulationRef.current = simulation;
 
     // Create gradient definitions
     const defs = svg.append('defs');
@@ -542,7 +601,22 @@ const RemixGraph: React.FC = () => {
         )}
 
         {/* Graph Controls */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-x-4">
+          <button
+            onClick={() => {
+              if (nodes.length >= 2) {
+                const parent = nodes[0];
+                const child = nodes.find(n => n.parentId === parent.id);
+                if (child) {
+                  animateForking(parent, child);
+                }
+              }
+            }}
+            disabled={isAnimating || nodes.length < 2}
+            className="bg-pepe-green hover:bg-green-600 disabled:bg-gray-400 text-black font-bold px-4 py-2 rounded border-2 border-black transition-colors"
+          >
+            {isAnimating ? '🎬 Animating...' : '🎬 Test Fork Animation'}
+          </button>
           <button
             onClick={() => window.location.reload()}
             className="bg-pepe-green hover:bg-green-600 text-black font-bold px-6 py-3 rounded-lg border-2 border-black transition-colors mr-4"
