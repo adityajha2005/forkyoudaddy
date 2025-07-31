@@ -1,10 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TagDisplay from '../components/TagDisplay';
+import LicensePurchaseButton from '../components/LicensePurchaseButton';
+import LicenseAccessVerifier from '../components/LicenseAccessVerifier';
 import { getAllIPs } from '../services/ipService';
 import { userService } from '../services/supabase';
 import { CATEGORIES, POPULAR_TAGS, getTagColor } from '../constants/tags';
 import { generateContentSuggestions } from '../services/aiService';
+
+// Helper function to safely convert token ID to BigInt
+const safeTokenIdToBigInt = (tokenId: string | undefined): bigint | undefined => {
+  if (!tokenId) return undefined;
+  
+  try {
+    // Remove any non-numeric characters and convert to BigInt
+    const cleanTokenId = tokenId.replace(/[^0-9]/g, '');
+    if (cleanTokenId) {
+      return BigInt(cleanTokenId);
+    }
+    return undefined;
+  } catch (error) {
+    console.warn('Failed to convert token ID to BigInt:', tokenId, error);
+    return undefined;
+  }
+};
 
 interface IP {
   id: string;
@@ -22,6 +41,7 @@ interface IP {
   tags?: string[];
   category?: string;
   commentCount?: number;
+  originTokenId?: string; // Token ID on Origin protocol
 }
 
 interface SearchFilters {
@@ -62,7 +82,7 @@ const ExplorePage = () => {
   const [aiSearchSuggestions, setAiSearchSuggestions] = useState<string[]>([]);
   const [isGeneratingAISuggestions, setIsGeneratingAISuggestions] = useState(false);
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
-  const [currentUserAddress, setCurrentUserAddress] = useState<string>('');
+  const [currentUserAddress, setCurrentUserAddress] = useState<string | undefined>('');
 
   // Load IPs with better error handling and caching
   const loadIPs = useCallback(async () => {
@@ -88,8 +108,11 @@ const ExplorePage = () => {
   // Load current user and following status
   useEffect(() => {
     const loadUserData = async () => {
+
+      
       if (window.ethereum?.selectedAddress) {
         const address = window.ethereum.selectedAddress;
+
         setCurrentUserAddress(address);
         
         try {
@@ -99,6 +122,9 @@ const ExplorePage = () => {
         } catch (error) {
           console.error('Error loading following users:', error);
         }
+      } else {
+
+        setCurrentUserAddress(undefined);
       }
     };
     
@@ -248,6 +274,16 @@ const ExplorePage = () => {
         mode: 'view'
       } 
     });
+  };
+
+  const handleAccessGranted = () => {
+    // Access granted - user can proceed
+    
+  };
+
+  const handleAccessDenied = () => {
+    // Access denied - show purchase prompt
+    
   };
 
   const handleFollow = async (authorAddress: string) => {
@@ -847,19 +883,36 @@ const ExplorePage = () => {
 
                   {/* Action Buttons */}
                   <div className="p-6 bg-gray-50">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleRemix(ip)}
-                        className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
+                    <div className="flex space-x-2 mb-3">
+
+                      <LicenseAccessVerifier
+                        tokenId={safeTokenIdToBigInt(ip.originTokenId)}
+                        userAddress={currentUserAddress}
+                        onAccessGranted={handleAccessGranted}
+                        onAccessDenied={handleAccessDenied}
                       >
-                        🍴 REMIX
-                      </button>
-                      <button
-                        onClick={() => handleView(ip)}
-                        className="flex-1 bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
+                        <button
+                          onClick={() => handleRemix(ip)}
+                          className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
+                        >
+                          🍴 REMIX
+                        </button>
+                      </LicenseAccessVerifier>
+                      
+                      <LicenseAccessVerifier
+                        tokenId={safeTokenIdToBigInt(ip.originTokenId)}
+                        userAddress={currentUserAddress}
+                        onAccessGranted={handleAccessGranted}
+                        onAccessDenied={handleAccessDenied}
                       >
-                        👁️ VIEW
-                      </button>
+                        <button
+                          onClick={() => handleView(ip)}
+                          className="flex-1 bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
+                        >
+                          👁️ VIEW
+                        </button>
+                      </LicenseAccessVerifier>
+                      
                       <button
                         onClick={() => navigate('/analytics', { state: { ip } })}
                         className="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg border-2 border-black transition-colors duration-200 text-sm"
@@ -867,6 +920,17 @@ const ExplorePage = () => {
                         📊 ANALYTICS
                       </button>
                     </div>
+                    
+                    {/* License Purchase Button - Only show if not the owner */}
+                    {currentUserAddress !== ip.author && (
+                      <LicensePurchaseButton
+                        ipId={ip.id}
+                        ipTitle={ip.title}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      />
+                    )}
                   </div>
                 </div>
               ))}

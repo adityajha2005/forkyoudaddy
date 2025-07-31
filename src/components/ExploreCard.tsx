@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GitFork, Eye, Clock } from 'lucide-react';
 import Tooltip from './Tooltip';
+import LicensePurchaseButton from './LicensePurchaseButton';
 
 interface ExploreCardProps {
   id: string;
@@ -144,24 +145,37 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
         </div>
         
         {/* Action buttons */}
-        <div className="flex space-x-3">
-          <Tooltip content="Create a remix of this IP" position="top">
-            <button 
-              onClick={handleRemix}
-              className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
-            >
-              <span>🍴</span>
-              <span>REMIX</span>
-            </button>
-          </Tooltip>
-          <Tooltip content="View full details" position="top">
-            <button 
-              onClick={handleView}
-              className="bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 hover:shadow-lg flex items-center justify-center"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-          </Tooltip>
+        <div className="flex flex-col space-y-3">
+          <div className="flex space-x-3">
+            <Tooltip content="Create a remix of this IP" position="top">
+              <button 
+                onClick={handleRemix}
+                className="flex-1 bg-pepe-green hover:bg-green-600 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+              >
+                <span>🍴</span>
+                <span>REMIX</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="View full details" position="top">
+              <button 
+                onClick={handleView}
+                className="bg-dank-yellow hover:bg-yellow-500 text-black font-bold py-3 px-4 rounded-lg border-2 border-black transition-all duration-200 transform hover:scale-105 hover:shadow-lg flex items-center justify-center"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          </div>
+          
+          {/* License Purchase Button - Only show if not the owner */}
+          {!isOwner && (
+            <LicensePurchaseButton
+              ipId={id}
+              ipTitle={title}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            />
+          )}
         </div>
       </div>
     </div>

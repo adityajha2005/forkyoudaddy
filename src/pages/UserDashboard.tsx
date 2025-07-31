@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllIPs } from '../services/ipService';
 import { userService, type User } from '../services/supabase';
+import { getPurchasesByBuyer, getPurchasesBySeller, type LicensePurchase } from '../services/licensingService';
 
 interface IP {
   id: string;
@@ -24,6 +25,9 @@ interface UserStats {
   totalViews: number;
   averageRemixCount: number;
   mostPopularIP?: IP;
+  totalLicensesPurchased: number;
+  totalRevenue: number;
+  totalLicenseSales: number;
 }
 
 const UserDashboard = () => {
@@ -34,14 +38,18 @@ const UserDashboard = () => {
     totalIPs: 0,
     totalRemixes: 0,
     totalViews: 0,
-    averageRemixCount: 0
+    averageRemixCount: 0,
+    totalLicensesPurchased: 0,
+    totalRevenue: 0,
+    totalLicenseSales: 0
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'profile' | 'created' | 'remixed' | 'stats'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'created' | 'remixed' | 'stats' | 'revenue' | 'licenses'>('profile');
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
+  const [userLicenses, setUserLicenses] = useState<LicensePurchase[]>([]);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -68,14 +76,6 @@ const UserDashboard = () => {
         setFollowers(followersData);
         setFollowing(followingData);
         
-        // Debug: Log the counts to help identify the issue
-        console.log('Dashboard Debug:', {
-          profileFollowingCount: profile.following_count,
-          actualFollowingCount: followingData.length,
-          profileFollowersCount: profile.followers_count,
-          actualFollowersCount: followersData.length
-        });
-        
         // Load all IPs
         const allIPs = await getAllIPs();
         
@@ -97,12 +97,35 @@ const UserDashboard = () => {
           (ip.remixCount || 0) > (max?.remixCount || 0) ? ip : max
         , undefined as IP | undefined);
         
+        // Calculate revenue from license sales
+        const userLicenseSales = getPurchasesBySeller(address);
+        const totalRevenue = userLicenseSales.reduce((sum: number, purchase: LicensePurchase) => {
+          if (purchase.status === 'completed') {
+            return sum + purchase.price;
+          }
+          return sum;
+        }, 0);
+        
+        const completedSales = userLicenseSales.filter((p: LicensePurchase) => p.status === 'completed');
+        
+        // Load user's purchased licenses
+        const purchasedLicenses = getPurchasesByBuyer(address);
+        setUserLicenses(purchasedLicenses);
+        
+        // Switch to licenses tab if user has licenses
+        if (purchasedLicenses.length > 0) {
+          setActiveTab('licenses');
+        }
+        
         setStats({
           totalIPs: createdIPs.length,
           totalRemixes: remixedIPs.length,
           totalViews,
           averageRemixCount,
-          mostPopularIP
+          mostPopularIP,
+          totalLicensesPurchased: purchasedLicenses.length,
+          totalRevenue,
+          totalLicenseSales: completedSales.length
         });
         
       } catch (error) {
@@ -161,6 +184,23 @@ const UserDashboard = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const getLicenseName = (licenseId: string) => {
+    switch (licenseId) {
+      case 'personal':
+        return 'Personal License';
+      case 'commercial':
+        return 'Commercial License';
+      case 'enterprise':
+        return 'Enterprise License';
+      case 'exclusive':
+        return 'Exclusive License';
+      case 'remix':
+        return 'Remix License';
+      default:
+        return licenseId;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -216,6 +256,8 @@ const UserDashboard = () => {
               <div className="text-sm text-gray-600">Avg Remixes/IP</div>
             </div>
           </div>
+
+
 
           {/* Most Popular IP */}
           {stats.mostPopularIP && (
@@ -287,6 +329,27 @@ const UserDashboard = () => {
                 }`}
               >
                 📊 Statistics
+              </button>
+              <button
+                onClick={() => setActiveTab('revenue')}
+                className={`px-6 py-3 rounded-lg font-bold transition-colors ${
+                  activeTab === 'revenue'
+                    ? 'bg-pepe-green text-black'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                💰 Revenue
+              </button>
+
+              <button
+                onClick={() => setActiveTab('licenses')}
+                className={`px-6 py-3 rounded-lg font-bold transition-colors ${
+                  activeTab === 'licenses'
+                    ? 'bg-pepe-green text-black'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                📜 My Licenses ({userLicenses.length})
               </button>
             </div>
 
@@ -580,6 +643,174 @@ const UserDashboard = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'revenue' && (
+              <div>
+                <h3 className="text-xl font-bold text-black mb-4">💰 Revenue Analytics</h3>
+                
+                {/* Revenue Overview */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-6 mb-6">
+                  <h4 className="text-lg font-bold text-green-800 mb-4">Revenue Summary</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white border-2 border-green-300 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600 mb-1">
+                        {stats.totalRevenue.toFixed(3)} CAMP
+                      </div>
+                      <div className="text-sm text-gray-600">Total Revenue</div>
+                    </div>
+                    <div className="bg-white border-2 border-green-300 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600 mb-1">
+                        {stats.totalLicenseSales}
+                      </div>
+                      <div className="text-sm text-gray-600">License Sales</div>
+                    </div>
+                    <div className="bg-white border-2 border-green-300 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600 mb-1">
+                        {stats.totalIPs > 0 ? (stats.totalRevenue / stats.totalIPs).toFixed(3) : '0.000'} CAMP
+                      </div>
+                      <div className="text-sm text-gray-600">Avg Revenue/IP</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revenue by IP */}
+                <div className="bg-white border-2 border-black rounded-lg p-6">
+                  <h4 className="text-lg font-bold text-black mb-4">Revenue by IP</h4>
+                  {userIPs.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-6xl mb-4">💰</div>
+                      <h4 className="text-lg font-bold text-gray-600 mb-2">No IPs Created Yet</h4>
+                      <p className="text-gray-500">Create IPs to start earning revenue from license sales!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {userIPs.map((ip) => {
+                        const ipSales = getPurchasesBySeller(walletAddress).filter(
+                          (purchase: LicensePurchase) => purchase.ipId === ip.id && purchase.status === 'completed'
+                        );
+                        const ipRevenue = ipSales.reduce((sum: number, purchase: LicensePurchase) => sum + purchase.price, 0);
+                        
+                        return (
+                          <div key={ip.id} className="border-2 border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-2xl">{getContentTypeIcon(ip.contentType)}</span>
+                                <div>
+                                  <h5 className="font-bold text-lg">{ip.title}</h5>
+                                  <p className="text-sm text-gray-600">{ip.description}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-lg font-bold text-green-600">
+                                  {ipRevenue.toFixed(3)} CAMP
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {ipSales.length} sales
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>License: {ip.license}</span>
+                              <span>Created: {new Date(ip.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'licenses' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-black">📜 My Purchased Licenses</h3>
+                  <button
+                    onClick={() => navigate('/licenses')}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-lg border-2 border-black transition-colors"
+                  >
+                    📋 View All Licenses
+                  </button>
+                </div>
+                
+                {userLicenses.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📜</div>
+                    <h4 className="text-lg font-bold text-gray-600 mb-2">No Licenses Purchased Yet</h4>
+                    <p className="text-gray-500 mb-4">Purchase licenses from the Explore page to access premium content!</p>
+                    <button
+                      onClick={() => navigate('/explore')}
+                      className="bg-pepe-green hover:bg-green-600 text-black font-bold px-6 py-3 rounded-lg border-2 border-black transition-colors"
+                    >
+                      🛒 Browse IPs
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userLicenses.map((license) => (
+                      <div key={license.id} className="bg-white border-2 border-black rounded-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-pepe-green rounded-lg flex items-center justify-center text-2xl">
+                              📜
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-lg">License #{license.id.slice(-8)}</h5>
+                              <p className="text-sm text-gray-600">IP: {license.ipId}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-green-600">
+                              {license.price.toFixed(3)} CAMP
+                            </div>
+                            <div className={`text-sm px-2 py-1 rounded-full ${
+                              license.status === 'completed' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {license.status}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">License Type:</span>
+                            <div className="font-medium">{getLicenseName(license.licenseId)}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Purchase Date:</span>
+                            <div className="font-medium">{new Date(license.purchaseDate).toLocaleDateString()}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Usage Count:</span>
+                            <div className="font-medium">{license.usageCount}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Transaction:</span>
+                            <div className="font-medium text-xs">
+                              {license.transactionHash ? 
+                                `${license.transactionHash.slice(0, 6)}...${license.transactionHash.slice(-4)}` : 
+                                'N/A'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {license.expiryDate && (
+                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="text-sm text-blue-800">
+                              <strong>Expires:</strong> {new Date(license.expiryDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

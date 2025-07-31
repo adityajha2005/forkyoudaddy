@@ -32,7 +32,7 @@ const PWAInstallPrompt: React.FC = () => {
       setDeferredPrompt(null);
       
       // Log the install
-      console.log('PWA was installed');
+      
       
       // Show success message
       alert('🎉 ForkYouDaddy has been installed! You can now access it from your home screen.');
@@ -73,9 +73,9 @@ const PWAInstallPrompt: React.FC = () => {
       const { outcome } = await deferredPrompt.userChoice;
       
       if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
+
       } else {
-        console.log('User dismissed the install prompt');
+        
       }
     } catch (error) {
       console.error('Error during install:', error);

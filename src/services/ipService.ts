@@ -21,6 +21,7 @@ interface IP {
   commentCount?: number;
   tokenId?: string | null;
   transactionHash?: string | null;
+  originTokenId?: string; // Token ID for Origin SDK integration
 }
 
 // For localStorage fallback
@@ -49,7 +50,8 @@ const convertSupabaseIPToLocal = (supabaseIP: SupabaseIP): IP => ({
   category: undefined, // Category not stored in Supabase
   commentCount: supabaseIP.comment_count || 0,
   tokenId: supabaseIP.token_id || null,
-  transactionHash: supabaseIP.transaction_hash || null
+  transactionHash: supabaseIP.transaction_hash || null,
+  originTokenId: supabaseIP.token_id || undefined // Map token_id to originTokenId
 });
 
 // Convert local IP to Supabase format
@@ -261,4 +263,59 @@ export const getIPById = async (id: string): Promise<IP | null> => {
 export const clearIPCache = (): void => {
   cachedIPs = null;
   lastLoadTime = 0;
+};
+
+// Assign Origin token ID to an IP
+export const assignOriginTokenId = async (ipId: string, originTokenId: string): Promise<boolean> => {
+  try {
+    // Update in Supabase (using token_id field for now)
+    try {
+      await supabaseIPService.updateIP(ipId, { token_id: originTokenId });
+      console.log(`Assigned Origin token ID ${originTokenId} to IP ${ipId}`);
+    } catch (error) {
+      console.warn('Failed to update Origin token ID in Supabase:', error);
+    }
+
+    // Update in localStorage
+    const storedIPs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const index = storedIPs.findIndex((ip: IP) => ip.id === ipId);
+    if (index !== -1) {
+      storedIPs[index].originTokenId = originTokenId;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedIPs));
+    }
+
+    // Clear cache to ensure fresh data
+    clearIPCache();
+    return true;
+  } catch (error) {
+    console.error('Error assigning Origin token ID:', error);
+    return false;
+  }
+};
+
+// Generate a unique Origin token ID
+export const generateOriginTokenId = (): string => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000);
+  return `${timestamp}${random}`; // Remove underscore for BigInt compatibility
+};
+
+// Assign Origin token IDs to all IPs that don't have one
+export const assignOriginTokenIdsToAllIPs = async (): Promise<void> => {
+  try {
+    const allIPs = await getAllIPs();
+    const ipsWithoutOriginTokenId = allIPs.filter(ip => !ip.originTokenId);
+    
+    console.log(`Found ${ipsWithoutOriginTokenId.length} IPs without Origin token IDs`);
+    
+    for (const ip of ipsWithoutOriginTokenId) {
+      const originTokenId = generateOriginTokenId();
+      await assignOriginTokenId(ip.id, originTokenId);
+      console.log(`Assigned Origin token ID ${originTokenId} to IP: ${ip.title}`);
+    }
+    
+    console.log('Finished assigning Origin token IDs to all IPs');
+  } catch (error) {
+    console.error('Error assigning Origin token IDs to all IPs:', error);
+  }
 }; 

@@ -56,12 +56,12 @@ const Navbar = () => {
           }
           await initializeAuthClient(clientId);
           await connectUser();
-          console.log('Successfully connected to Origin SDK');
+  
         } catch (originError) {
           console.error('Origin SDK error:', originError);
           // Don't fail the entire connection if Origin SDK fails
           // User can still use the app without Origin SDK
-          console.log('Continuing without Origin SDK...');
+  
         }
       }
     } catch (error) {
@@ -239,6 +239,14 @@ const Navbar = () => {
                       >
                         <span>👤</span>
                         <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        to="/licenses"
+                        onClick={() => setShowWalletDropdown(false)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center space-x-2"
+                      >
+                        <span>📄</span>
+                        <span>My Licenses</span>
                       </Link>
                       <button
                         onClick={copyAddress}

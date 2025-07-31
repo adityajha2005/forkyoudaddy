@@ -77,14 +77,14 @@ const RemixPage = () => {
 
     try {
       // TODO: Implement actual IPFS upload and Origin SDK forkIP()
-      console.log('Remix form data:', formData);
-      console.log('Original IP ID:', originalIP?.id);
+      
+      
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // TODO: Navigate to explore page or show success message
-      console.log('IP remixed successfully!');
+      
       
     } catch (error) {
       console.error('Error remixing IP:', error);

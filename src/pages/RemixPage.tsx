@@ -110,7 +110,7 @@ const RemixPage = () => {
     // For image content, either file or content is acceptable
     if (originalIP.contentType === 'image' && !formData.file && !formData.content) {
       // For image IPs, if no new file is uploaded, we'll use the original image
-      console.log('Using original image for remix');
+      
     } else if (originalIP.contentType === 'text' && !formData.content) {
       alert('Please provide content for text IP');
       return;

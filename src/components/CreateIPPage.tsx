@@ -39,13 +39,13 @@ const CreateIPPage = () => {
 
     try {
       // TODO: Implement actual IPFS upload and Origin SDK registration
-      console.log('Form data:', formData);
+      
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // TODO: Navigate to explore page or show success message
-      console.log('IP created successfully!');
+      
       
     } catch (error) {
       console.error('Error creating IP:', error);
@@ -180,7 +180,7 @@ const CreateIPPage = () => {
                     const file = e.target.files?.[0];
                     if (file) {
                       // TODO: Handle file upload
-                      console.log('File selected:', file);
+              
                     }
                   }}
                   className="hidden"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TagSelector from '../components/TagSelector';
+import LicenseSelector from '../components/LicenseSelector';
 import { addIP } from '../services/ipService';
 import { registerIP } from '../services/campOrigin';
 import { uploadToIPFS, uploadFileToIPFS } from '../services/ipfs';
@@ -36,20 +37,11 @@ const CreateIPPage = () => {
     title: '',
     description: '',
     contentType: 'text',
-    license: 'MIT',
+    license: 'personal',
     content: '',
     tags: [],
     category: ''
   });
-
-  const licenseOptions = [
-    { value: 'MIT', label: 'MIT License' },
-    { value: 'CC0', label: 'Creative Commons Zero' },
-    { value: 'CC-BY', label: 'Creative Commons Attribution' },
-    { value: 'CC-BY-SA', label: 'Creative Commons Attribution-ShareAlike' },
-    { value: 'CC-BY-NC', label: 'Creative Commons Attribution-NonCommercial' },
-    { value: 'CC-BY-NC-SA', label: 'Creative Commons Attribution-NonCommercial-ShareAlike' }
-  ];
 
   const handleInputChange = (field: keyof CreateIPForm, value: string | File | string[]) => {
     setFormData(prev => ({
@@ -513,22 +505,11 @@ const CreateIPPage = () => {
 
               {/* License */}
               <div>
-                <label htmlFor="license" className="block text-sm font-bold text-gray-700 mb-2">
-                  LICENSE *
-                </label>
-                <select
-                  id="license"
-                  value={formData.license}
-                  onChange={(e) => handleInputChange('license', e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pepe-green focus:outline-none font-medium"
-                  required
-                >
-                  {licenseOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <LicenseSelector
+                  selectedLicense={formData.license}
+                  onLicenseChange={(licenseId) => handleInputChange('license', licenseId)}
+                  showPricing={false}
+                />
               </div>
 
               {/* Tags and Categories */}
