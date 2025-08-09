@@ -135,7 +135,7 @@ function App() {
             <PWAInstallPrompt />
             
             {/* Demo Setup (Development Only) */}
-            <DemoSetup />
+            {/* <DemoSetup /> */}
           </div>
         </Router>
       </CampProvider>

@@ -247,14 +247,14 @@ const Hero = () => {
                 <span>🎨</span>
                 <span>ART</span>
               </div>
-              <div className="flex items-center space-x-2 bg-purple-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
+              {/* <div className="flex items-center space-x-2 bg-purple-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
                 <span>🎵</span>
                 <span>AUDIO</span>
               </div>
               <div className="flex items-center space-x-2 bg-red-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
                 <span>🎬</span>
                 <span>VIDEO</span>
-              </div>
+              </div> */}
             </div>
           </div>
 
