@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ExploreCard from './ExploreCard';
 import FilterTabs, { FilterOption } from './FilterTabs';
 import EmptyState from './EmptyState';
+import { getTrendingIPs, getTopEarningIPs, isDemoMode } from '../utils/demoSetup';
 
 interface IPContent {
   id: string;
@@ -11,14 +12,27 @@ interface IPContent {
   author: string;
   remixCount: number;
   license: string;
-  type: 'AI PROMPT' | 'MEME' | 'KNOWLEDGE';
+  type: 'AI PROMPT' | 'MEME' | 'KNOWLEDGE' | 'ART' | 'AUDIO' | 'VIDEO';
   image: string;
   createdAt: string;
   isOwner?: boolean;
+  revenue?: string;
+  trending?: boolean;
+  views?: number;
+  likes?: number;
+  parentId?: string;
+  originalIP?: {
+    id: string;
+    title: string;
+    author: string;
+    type: string;
+  };
 }
 
 const ExplorePage = () => {
   const [activeFilter, setActiveFilter] = useState<'trending' | 'latest' | 'mine'>('trending');
+  const [demoIPs, setDemoIPs] = useState<IPContent[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const filterOptions: FilterOption[] = [
@@ -26,6 +40,91 @@ const ExplorePage = () => {
     { key: 'latest', label: 'LATEST', icon: '⚡' },
     { key: 'mine', label: 'MINE', icon: '👤' }
   ];
+
+  useEffect(() => {
+    loadDemoData();
+  }, []);
+
+  const loadDemoData = () => {
+    try {
+      setLoading(true);
+      
+      // Load demo IPs from localStorage
+      const storedIPs = localStorage.getItem('forkyoudaddy_ips');
+      if (storedIPs && isDemoMode()) {
+        const ips = JSON.parse(storedIPs);
+        const formattedIPs: IPContent[] = ips.map((ip: any) => {
+          // Find original IP if this is a remix
+          let originalIP = undefined;
+          if (ip.parentId) {
+            const original = ips.find((originalIp: any) => originalIp.id === ip.parentId);
+            if (original) {
+              originalIP = {
+                id: original.id,
+                title: original.title,
+                author: original.author,
+                type: getContentType(original.contentType)
+              };
+            }
+          }
+
+          return {
+            id: ip.id,
+            title: ip.title,
+            subtitle: ip.description,
+            author: ip.author,
+            remixCount: ip.remixCount,
+            license: ip.license,
+            type: getContentType(ip.contentType),
+            image: getImageForType(ip.contentType, ip.category),
+            createdAt: ip.createdAt,
+            isOwner: ip.author === '0xAlice1234567890abcdef',
+            revenue: ip.revenue,
+            trending: ip.trending,
+            views: ip.views,
+            likes: ip.likes,
+            parentId: ip.parentId,
+            originalIP
+          };
+        });
+        setDemoIPs(formattedIPs);
+      } else {
+        // Fallback to mock data
+        setDemoIPs(mockIPs);
+      }
+    } catch (error) {
+      console.error('Error loading demo data:', error);
+      setDemoIPs(mockIPs);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getContentType = (contentType: string): IPContent['type'] => {
+    switch (contentType) {
+      case 'text':
+        return 'KNOWLEDGE';
+      case 'image':
+        return 'ART';
+      case 'audio':
+        return 'AUDIO';
+      case 'video':
+        return 'VIDEO';
+      default:
+        return 'ART';
+    }
+  };
+
+  const getImageForType = (contentType: string, category: string) => {
+    const images = {
+      'Art': "https://images.pexels.com/photos/2194261/pexels-photo-2194261.jpeg?auto=compress&cs=tinysrgb&w=400",
+      'Education': "https://images.pexels.com/photos/730547/pexels-photo-730547.jpeg?auto=compress&cs=tinysrgb&w=400",
+      'Music': "https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=400",
+      'default': "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg?auto=compress&cs=tinysrgb&w=400"
+    };
+    
+    return images[category as keyof typeof images] || images.default;
+  };
 
   // Mock data - will be replaced with real onchain data
   const mockIPs: IPContent[] = [
@@ -104,15 +203,22 @@ const ExplorePage = () => {
   ];
 
   const getFilteredIPs = () => {
+    const ips = demoIPs.length > 0 ? demoIPs : mockIPs;
+    
     switch (activeFilter) {
       case 'trending':
-        return [...mockIPs].sort((a, b) => b.remixCount - a.remixCount);
+        return [...ips].sort((a, b) => {
+          // Sort by trending status first, then by remix count
+          if (a.trending && !b.trending) return -1;
+          if (!a.trending && b.trending) return 1;
+          return b.remixCount - a.remixCount;
+        });
       case 'latest':
-        return [...mockIPs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return [...ips].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       case 'mine':
-        return mockIPs.filter(ip => ip.isOwner);
+        return ips.filter(ip => ip.isOwner);
       default:
-        return mockIPs;
+        return ips;
     }
   };
 
@@ -121,6 +227,17 @@ const ExplorePage = () => {
   const handleCreateIP = () => {
     navigate('/create');
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pepe-green mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading amazing content...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -134,6 +251,32 @@ const ExplorePage = () => {
         </p>
       </div>
 
+      {/* Live Stats Banner */}
+      {isDemoMode() && (
+        <div className="mb-8">
+          <div className="bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 rounded-lg border-2 border-black">
+            <div className="flex items-center justify-center space-x-8 text-center">
+              <div>
+                <div className="text-2xl font-black">5.2 ETH</div>
+                <div className="text-sm">Total Revenue</div>
+              </div>
+              <div>
+                <div className="text-2xl font-black">479</div>
+                <div className="text-sm">Total Remixes</div>
+              </div>
+              <div>
+                <div className="text-2xl font-black">1,250</div>
+                <div className="text-sm">Active Users</div>
+              </div>
+              <div>
+                <div className="text-2xl font-black">8</div>
+                <div className="text-sm">Trending IPs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Tabs */}
       <FilterTabs
         options={filterOptions}
@@ -145,6 +288,11 @@ const ExplorePage = () => {
       <div className="text-center mb-8">
         <p className="text-gray-600 font-medium">
           {filteredIPs.length} {activeFilter === 'mine' ? 'IPs created' : 'IPs found'}
+          {isDemoMode() && (
+            <span className="ml-2 text-pepe-green font-bold">
+              • Demo Mode Active
+            </span>
+          )}
         </p>
       </div>
 
@@ -168,6 +316,17 @@ const ExplorePage = () => {
           actionText="🎨 CREATE IP"
           onAction={handleCreateIP}
         />
+      )}
+
+      {/* Demo Mode Notice */}
+      {isDemoMode() && (
+        <div className="mt-8 text-center">
+          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 inline-block">
+            <p className="text-yellow-800 font-medium">
+              🧪 Demo Mode: Showing impressive demo data for hackathon presentation
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -19,6 +19,7 @@ import UserDashboard from './pages/UserDashboard';
 import IPAnalyticsPage from './pages/IPAnalyticsPage';
 import UserLicensesPage from './pages/UserLicensesPage';
 import UserProfile from './components/UserProfile';
+import DemoSetup from './components/DemoSetup';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -132,6 +133,9 @@ function App() {
 
             {/* PWA Install Prompt */}
             <PWAInstallPrompt />
+            
+            {/* Demo Setup (Development Only) */}
+            <DemoSetup />
           </div>
         </Router>
       </CampProvider>

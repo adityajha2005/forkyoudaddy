@@ -797,7 +797,8 @@ const ExplorePage = () => {
                     <p className="text-gray-600 text-sm mb-4 line-clamp-3">
                       {ip.description}
                     </p>
-
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                     </div>
                     {/* Content Preview */}
                     <div className="bg-gray-50 rounded-lg p-3 mb-4">
                       <div className="text-xs text-gray-500 mb-1">Content Preview:</div>

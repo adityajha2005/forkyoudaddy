@@ -1,8 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDemoAnalytics } from '../utils/demoSetup';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const [liveStats, setLiveStats] = useState({
+    totalRevenue: "5.2 ETH",
+    totalRemixes: 479,
+    totalUsers: 1250,
+    trendingIPs: 8
+  });
+
+  useEffect(() => {
+    // Load demo analytics if available
+    const analytics = getDemoAnalytics();
+    if (analytics.totalRevenue) {
+      setLiveStats({
+        totalRevenue: analytics.totalRevenue,
+        totalRemixes: analytics.totalRemixes,
+        totalUsers: analytics.totalUsers,
+        trendingIPs: analytics.trendingIPs
+      });
+    }
+
+    // Live counter effect
+    const interval = setInterval(() => {
+      setLiveStats(prev => ({
+        ...prev,
+        totalRemixes: prev.totalRemixes + Math.floor(Math.random() * 3) + 1,
+        totalUsers: prev.totalUsers + Math.floor(Math.random() * 2) + 1
+      }));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCreateIP = () => {
     navigate('/create');
@@ -124,10 +155,12 @@ const Hero = () => {
               alt="AI Generated Cat"
               className="w-full h-32 object-cover rounded border border-black"
             />
-            <div className="text-sm text-black mt-2">🍴 42 remixes</div>
+            <div className="text-sm text-black mt-2">🍴 156 remixes • 💰 0.5 ETH</div>
           </div>
         </div>
-          <div className="absolute bottom-60 right-40 max-w-2xl">
+        
+        {/* Knowledge Example - Bottom Right */}
+        <div className="absolute bottom-60 right-40 max-w-2xl">
           <div className="bg-blue-400 border-2 border-black rounded-lg p-4 shadow-lg">
             <div className="text-sm font-bold text-black mb-2">📚 KNOWLEDGE</div>
             <div className="text-sm text-black mb-2">"DeFi Basics Guide"</div>
@@ -136,10 +169,11 @@ const Hero = () => {
               alt="Knowledge"
               className="w-full h-40 object-cover rounded border border-black"
             />
-            <div className="text-sm text-black mt-2">🍴 73 remixes</div>
+            <div className="text-sm text-black mt-2">🍴 89 remixes • 💰 0.3 ETH</div>
           </div>
         </div>
 
+        {/* Meme Example - Top Left */}
         <div className="absolute top-32 left-7 max-w-2xl transform rotate-[21deg]">
           <div className="bg-dank-yellow border-2 border-black rounded-lg p-4 shadow-lg">
             <div className="text-sm font-bold text-black mb-2">😂 MEME</div>
@@ -149,23 +183,9 @@ const Hero = () => {
               alt="Meme"
               className="w-full h-40 object-cover rounded border border-black"
             />
-            <div className="text-sm text-black mt-2">🍴 256 remixes</div>
+            <div className="text-sm text-black mt-2">🍴 256 remixes • 💰 0.8 ETH</div>
           </div>
         </div>
-
-        {/* Knowledge Example - Bottom Right */}
-        {/* <div className="absolute bottom-20 right-8 max-w-xs">
-          <div className="bg-blue-400 border-2 border-black rounded-lg p-3 shadow-lg">
-            <div className="text-xs font-bold text-black mb-2">📚 KNOWLEDGE</div>
-            <div className="text-xs text-black mb-2">"DeFi Basics Guide"</div>
-            <img 
-              src="https://images.pexels.com/photos/730547/pexels-photo-730547.jpeg?auto=compress&cs=tinysrgb&w=150" 
-              alt="Knowledge"
-              className="w-full h-20 object-cover rounded border border-black"
-            />
-            <div className="text-xs text-black mt-2">🍴 73 remixes</div>
-          </div>
-        </div> */}
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
@@ -184,6 +204,28 @@ const Hero = () => {
           <p className="text-lg sm:text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
             Discover the hottest remixable content, stake on your favorites, and watch them battle for the crown! 👑
           </p>
+
+          {/* Live Stats */}
+          <div className="mb-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              <div className="bg-gradient-to-br from-green-400 to-emerald-500 text-white p-4 rounded-lg border-2 border-black">
+                <div className="text-2xl font-black">{liveStats.totalRevenue}</div>
+                <div className="text-sm font-bold">Total Revenue</div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white p-4 rounded-lg border-2 border-black">
+                <div className="text-2xl font-black">{liveStats.totalRemixes.toLocaleString()}</div>
+                <div className="text-sm font-bold">Total Remixes</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-400 to-pink-500 text-white p-4 rounded-lg border-2 border-black">
+                <div className="text-2xl font-black">{liveStats.totalUsers.toLocaleString()}</div>
+                <div className="text-sm font-bold">Active Users</div>
+              </div>
+              <div className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-4 rounded-lg border-2 border-black">
+                <div className="text-2xl font-black">{liveStats.trendingIPs}</div>
+                <div className="text-sm font-bold">Trending IPs</div>
+              </div>
+            </div>
+          </div>
 
           {/* Content Type Showcase */}
           <div className="mb-12">
@@ -205,24 +247,16 @@ const Hero = () => {
                 <span>🎨</span>
                 <span>ART</span>
               </div>
+              <div className="flex items-center space-x-2 bg-purple-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
+                <span>🎵</span>
+                <span>AUDIO</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-red-400 text-black px-4 py-2 rounded-full border-2 border-black font-bold">
+                <span>🎬</span>
+                <span>VIDEO</span>
+              </div>
             </div>
           </div>
-
-          {/* Stats */}
-          {/* <div className="flex justify-center items-center space-x-8 mb-12 text-sm text-gray-500">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">🔥</span>
-              <span>1,234 IPs Created</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">🍴</span>
-              <span>5,678 Remixes</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">👥</span>
-              <span>890 Creators</span>
-            </div>
-          </div> */}
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
@@ -256,8 +290,6 @@ const Hero = () => {
               </span>
             </button>
           </div>
-
-
 
           {/* Call to action text */}
           <div className="mt-8 text-center">

@@ -23,8 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 .env
+!.env.example
+
+# Internal documentation files (keep README.md and LICENSE)
+*.mdc
 .cursor/
 
-# Documentation files
-*.md
-*.mdc
+# Temporary files
+*.tmp
+*.temp

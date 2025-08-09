@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitFork, Eye, Clock } from 'lucide-react';
+import { GitFork, Eye, Clock, TrendingUp, DollarSign, ArrowUpRight } from 'lucide-react';
 import Tooltip from './Tooltip';
 import LicensePurchaseButton from './LicensePurchaseButton';
 
@@ -15,6 +15,17 @@ interface ExploreCardProps {
   image: string;
   createdAt?: string;
   isOwner?: boolean;
+  revenue?: string;
+  trending?: boolean;
+  views?: number;
+  likes?: number;
+  parentId?: string;
+  originalIP?: {
+    id: string;
+    title: string;
+    author: string;
+    type: string;
+  };
 }
 
 const ExploreCard: React.FC<ExploreCardProps> = ({
@@ -27,7 +38,13 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
   image,
   id,
   isOwner,
-  createdAt
+  createdAt,
+  revenue,
+  trending,
+  views,
+  likes,
+  parentId,
+  originalIP
 }) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
@@ -38,6 +55,12 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
 
   const handleView = () => {
     navigate(`/ip/${id}`);
+  };
+
+  const handleViewOriginal = () => {
+    if (originalIP) {
+      navigate(`/ip/${originalIP.id}`);
+    }
   };
 
   const formatDate = (dateString?: string) => {
@@ -51,6 +74,15 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
     return date.toLocaleDateString();
   };
+
+  const formatViews = (views?: number) => {
+    if (!views) return '';
+    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
+    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
+    return views.toString();
+  };
+
+  const isRemix = !!parentId || !!originalIP;
 
   return (
     <div 
@@ -75,6 +107,25 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
               {type}
             </span>
           </Tooltip>
+          
+          {/* Remix Badge */}
+          {isRemix && (
+            <Tooltip content="This is a remix of another IP" position="right">
+              <span className="bg-gradient-to-r from-purple-400 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold border-2 border-black shadow-lg flex items-center space-x-1">
+                <ArrowUpRight className="w-3 h-3" />
+                <span>REMIX</span>
+              </span>
+            </Tooltip>
+          )}
+          
+          {trending && (
+            <Tooltip content="Trending IP" position="right">
+              <span className="bg-gradient-to-r from-orange-400 to-red-500 text-white px-3 py-1 rounded-full text-xs font-bold border-2 border-black shadow-lg flex items-center space-x-1">
+                <TrendingUp className="w-3 h-3" />
+                <span>TRENDING</span>
+              </span>
+            </Tooltip>
+          )}
           {isOwner && (
             <Tooltip content="You created this IP" position="right">
               <span className="bg-dank-yellow text-black px-3 py-1 rounded-full text-xs font-bold border-2 border-black shadow-lg">
@@ -84,8 +135,20 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
           )}
         </div>
 
+        {/* Revenue Badge */}
+        {revenue && (
+          <div className="absolute top-3 right-3">
+            <Tooltip content={`Revenue: ${revenue}`} position="left">
+              <span className="bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold border-2 border-black shadow-lg flex items-center space-x-1">
+                <DollarSign className="w-3 h-3" />
+                <span>{revenue}</span>
+              </span>
+            </Tooltip>
+          </div>
+        )}
+
         {/* Quick actions on hover */}
-        <div className={`absolute top-3 right-3 flex space-x-2 transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}>
+        <div className={`absolute bottom-3 right-3 flex space-x-2 transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}>
           <Tooltip content="View details" position="left">
             <button 
               onClick={(e) => { e.stopPropagation(); handleView(); }}
@@ -95,6 +158,20 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
             </button>
           </Tooltip>
         </div>
+
+        {/* Views and Likes */}
+        {(views || likes) && (
+          <div className="absolute bottom-3 left-3">
+            <div className="bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold">
+              {views && (
+                <span className="mr-3">👁️ {formatViews(views)}</span>
+              )}
+              {likes && (
+                <span>❤️ {formatViews(likes)}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="p-6">
@@ -107,6 +184,28 @@ const ExploreCard: React.FC<ExploreCardProps> = ({
             {subtitle}
           </p>
         </div>
+
+        {/* Original IP Info - Show if this is a remix */}
+        {isRemix && originalIP && (
+          <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ArrowUpRight className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-bold text-purple-800">Remix of:</span>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleViewOriginal(); }}
+                className="text-purple-600 hover:text-purple-800 text-sm font-medium underline"
+              >
+                View Original
+              </button>
+            </div>
+            <div className="mt-2">
+              <div className="font-bold text-sm text-purple-800">{originalIP.title}</div>
+              <div className="text-xs text-purple-600">By {originalIP.author}</div>
+            </div>
+          </div>
+        )}
         
         {/* Author and stats */}
         <div className="flex items-center justify-between mb-4">
