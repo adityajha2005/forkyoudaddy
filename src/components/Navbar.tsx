@@ -183,13 +183,21 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link 
-              to="/" 
-              className="text-2xl font-black text-black hover:text-pepe-green transition-colors duration-200 flex items-center space-x-2"
+            <Link
+              to="/"
+              className="flex items-center space-x-2 group"
+              aria-label="ForkYouDaddy Home"
             >
-              {/* <span>🧠</span> */}
-              <span className="hidden sm:inline">FORKMEDADDY</span>
-              <span className="sm:hidden">FMD</span>
+              <img
+                src="/logo.jpeg"
+                alt="ForkYouDaddy logo"
+                className="h-10 w-auto border-2 border-black rounded-md bg-white group-hover:brightness-110 transition"
+                loading="eager"
+                decoding="async"
+              />
+              <span className="text-xl font-black text-black group-hover:text-pepe-green transition-colors hidden sm:inline">
+                ForkYouDaddy
+              </span>
             </Link>
           </div>
 
