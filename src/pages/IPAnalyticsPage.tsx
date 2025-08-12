@@ -410,7 +410,7 @@ const IPAnalyticsPage = () => {
                       </div>
                     </div>
                     <a 
-                      href={`https://explorer.campnetwork.xyz/address/${remixer.author}`}
+                      href={`https://basecamp.cloud.blockscout.com/address/${remixer.author}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 text-sm underline"

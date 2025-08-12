@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TagDisplay from '../components/TagDisplay';
 import LicensePurchaseButton from '../components/LicensePurchaseButton';
@@ -826,7 +826,7 @@ const ExplorePage = () => {
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                           <a 
-                            href={`https://explorer.campnetwork.xyz/address/${ip.author}`}
+                            href={`https://basecamp.cloud.blockscout.com/address/${ip.author}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 underline"

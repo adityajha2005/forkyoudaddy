@@ -312,7 +312,7 @@ const RemixPage = () => {
                         <label className="block text-sm font-bold text-gray-700 mb-1">Author</label>
                         <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
                           <a 
-                            href={`https://explorer.campnetwork.xyz/address/${originalIP.author}`}
+                             href={`https://basecamp.cloud.blockscout.com/address/${originalIP.author}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 underline break-all"
@@ -434,7 +434,7 @@ const RemixPage = () => {
                       <label className="block text-sm font-bold text-gray-700 mb-1">Author</label>
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
                         <a 
-                          href={`https://explorer.campnetwork.xyz/address/${originalIP.author}`}
+                          href={`https://basecamp.cloud.blockscout.com/address/${originalIP.author}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800 underline break-all"

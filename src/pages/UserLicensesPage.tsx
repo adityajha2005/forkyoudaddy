@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getPurchasesByBuyer, getLicenseById, isLicenseExpired, isUsageLimitExceeded } from '../services/licensingService';
-import { checkUserAccess, isAccessExpired, getTimeUntilExpiry, formatExpiryDate } from '../services/accessControlService';
+import { checkUserAccess, getTimeUntilExpiry } from '../services/accessControlService';
 import { getIPById } from '../services/ipService';
 import { useAuth } from '@campnetwork/origin/react';
 
@@ -312,8 +312,8 @@ const UserLicensesPage: React.FC<UserLicensesPageProps> = ({ userAddress }) => {
                     </button>
                     {purchase.transactionHash && (
                       <button
-                        onClick={() => window.open(`https://basescan.org/tx/${purchase.transactionHash}`, '_blank')}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-3 rounded-lg border-2 border-gray-300 transition-all duration-200 text-sm"
+                        onClick={() => window.open(`https://basecamp.cloud.blockscout.com/tx/${purchase.transactionHash}`, '_blank')}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-3 rounded-lg border-2 border-gray-300 transition-colors duration-200 text-sm"
                       >
                         View TX
                       </button>

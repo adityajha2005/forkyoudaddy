@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { initializeAuthClient, connectUser, disconnectUser } from '../services/campOrigin';
+import { initializeAuthClient, connectUser } from '../services/campOrigin';
 
 interface MobileNavProps {
   isConnected: boolean;
@@ -83,7 +83,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             decimals: 18
           },
           rpcUrls: ['https://rpc-campnetwork.xyz'],
-          blockExplorerUrls: ['https://explorer.campnetwork.xyz']
+          blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
         }]
       });
     } catch (error) {

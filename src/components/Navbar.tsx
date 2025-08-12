@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { initializeAuthClient, connectUser, disconnectUser } from '../services/campOrigin';
+import { useAuth } from '@campnetwork/origin/react';
 
 // MetaMask type declarations
 declare global {
@@ -16,6 +16,7 @@ const Navbar = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
   const location = useLocation();
+  const auth = useAuth(); // Use the Origin SDK auth hook
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -48,20 +49,27 @@ const Navbar = () => {
         // Switch to Basecamp network
         await switchToBasecamp();
         
-        // Initialize Origin SDK after wallet is connected
+        // Connect to Origin SDK using the hook
         try {
-          const clientId = import.meta.env.VITE_CAMP_CLIENT_ID;
-          if (!clientId) {
-            throw new Error('Camp Network Client ID not found in environment variables');
+          if (auth) {
+            // Ensure provider is set before connect
+            if (typeof (auth as any).setProvider === 'function' && typeof window !== 'undefined' && window.ethereum) {
+              console.log('Setting Origin SDK provider (hook)...');
+              await (auth as any).setProvider({
+                provider: window.ethereum,
+                info: { name: 'MetaMask', icon: 'https://metamask.io/images/metamask-fox.svg' }
+              });
+            }
+            if (typeof auth.connect === 'function') {
+              console.log('Connecting to Origin SDK via hook...');
+              await auth.connect();
+              console.log('Connected to Origin SDK successfully');
+            }
           }
-          await initializeAuthClient(clientId);
-          await connectUser();
-  
         } catch (originError) {
-          console.error('Origin SDK error:', originError);
+          console.error('Origin SDK connection error:', originError);
           // Don't fail the entire connection if Origin SDK fails
           // User can still use the app without Origin SDK
-  
         }
       }
     } catch (error) {
@@ -85,7 +93,7 @@ const Navbar = () => {
             decimals: 18
           },
           rpcUrls: ['https://rpc-campnetwork.xyz'],
-          blockExplorerUrls: ['https://explorer.campnetwork.xyz']
+          blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
         }]
       });
     } catch (error) {
