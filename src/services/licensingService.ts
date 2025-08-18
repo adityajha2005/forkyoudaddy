@@ -253,7 +253,7 @@ export const buyAccessWithOrigin = async (
     if (!isOriginSDKAvailable(auth)) {
       console.warn('Origin SDK not available, using fallback');
       // Fallback to simulated transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 7000));
       return {
         success: true,
         transactionHash: `0x${Math.random().toString(36).substr(2, 64)}`
@@ -275,7 +275,7 @@ export const buyAccessWithOrigin = async (
     // If it's a rate limit error, use fallback
     if (error instanceof Error && error.message.includes('429')) {
       console.warn('Rate limit hit during purchase, using fallback');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 7000));
       return {
         success: true,
         transactionHash: `0x${Math.random().toString(36).substr(2, 64)}`
